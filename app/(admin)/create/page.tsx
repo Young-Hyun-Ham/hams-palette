@@ -2,42 +2,17 @@
 
 import { useMemo, useState, type ChangeEvent } from "react";
 
-type BinaryAsset = {
-  id: string;
-  name: string;
-  type: string;
-  size: number;
-  bytes: number[];
-};
-
-type PaletteItem = {
-  id: string;
-  name: string;
-  tone: string;
-  sizeLabel: string;
-  defaultCols: number;
-  defaultContentHeight: number;
-  cardClassName: string;
-  defaultContent: string;
-};
-
-type LayoutItem = {
-  instanceId: string;
-  paletteId: string;
-  cols: number;
-  contentHeight: number;
-  contentEnabled: boolean;
-  contentText: string;
-  backgroundImage: BinaryAsset | null;
-  attachments: BinaryAsset[];
-};
-
-type EditorDraft = {
-  instanceId: string;
-  contentText: string;
-  backgroundImage: BinaryAsset | null;
-  attachments: BinaryAsset[];
-};
+import { ContentEditorModal } from "@/app/components/create/ContentEditorModal";
+import { ContentBlocks } from "@/app/components/create/ContentBlocks";
+import { PreviewModal } from "@/app/components/create/PreviewModal";
+import {
+  binaryToDataUrl,
+  colClass,
+  type BinaryAsset,
+  type EditorDraft,
+  type LayoutItem,
+  type PaletteItem,
+} from "@/app/components/create/shared";
 
 const paletteItems: PaletteItem[] = [
   {
@@ -115,7 +90,7 @@ const paletteItems: PaletteItem[] = [
 const defaultLayoutIds = ["hero", "intro", "visual", "program", "notice", "cta", "footer"];
 const colOptions = [2, 3, 4, 6, 8, 12];
 const contentHeightOptions = Array.from({ length: 35 }, (_, index) => (index + 1) * 10);
-const emojiOptions = ["😀", "✨", "📌", "🎯", "🖼️", "📝", "🔥", "💡"];
+const emojiOptions = ["😀", "🎉", "📌", "✨", "🖼️", "📝", "📎", "✅"];
 
 function findPaletteItem(id: string) {
   return paletteItems.find((item) => item.id === id);
@@ -123,19 +98,6 @@ function findPaletteItem(id: string) {
 
 function frameTitle(name: string, index: number) {
   return `${String(index + 1).padStart(2, "0")}. ${name}`;
-}
-
-function colClass(cols: number) {
-  const map: Record<number, string> = {
-    2: "col-span-12 lg:col-span-2",
-    3: "col-span-12 lg:col-span-3",
-    4: "col-span-12 lg:col-span-4",
-    6: "col-span-12 lg:col-span-6",
-    8: "col-span-12 lg:col-span-8",
-    12: "col-span-12 lg:col-span-12",
-  };
-
-  return map[cols] ?? map[12];
 }
 
 function cloneAsset(asset: BinaryAsset | null) {
@@ -177,30 +139,22 @@ async function toBinaryAsset(file: File): Promise<BinaryAsset> {
   };
 }
 
-function binaryToDataUrl(asset: BinaryAsset | null) {
-  if (!asset) {
-    return undefined;
-  }
-
-  let binary = "";
-  const chunkSize = 0x8000;
-
-  for (let index = 0; index < asset.bytes.length; index += chunkSize) {
-    binary += String.fromCharCode(...asset.bytes.slice(index, index + chunkSize));
-  }
-
-  return `data:${asset.type};base64,${btoa(binary)}`;
-}
-
 export default function CreatePage() {
   const [layout, setLayout] = useState<LayoutItem[]>(() => createInitialLayout());
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string>(() => createInitialLayout()[0].instanceId);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [editorDraft, setEditorDraft] = useState<EditorDraft | null>(null);
+  const [editorHistory, setEditorHistory] = useState<{
+    past: EditorDraft[];
+    future: EditorDraft[];
+  }>({
+    past: [],
+    future: [],
+  });
 
   const selectedLayoutItem = useMemo(
-    () => layout.find((item) => item.instanceId === selectedId) ?? layout[0],
+    () => layout.find((item: LayoutItem) => item.instanceId === selectedId) ?? layout[0],
     [layout, selectedId],
   );
 
@@ -212,12 +166,15 @@ export default function CreatePage() {
   const previewItems = useMemo(
     () =>
       layout
-        .map((layoutItem) => ({
+        .map((layoutItem: LayoutItem) => ({
           layoutItem,
           paletteItem: findPaletteItem(layoutItem.paletteId),
         }))
         .filter(
-          (entry): entry is { layoutItem: LayoutItem; paletteItem: PaletteItem } =>
+          (entry: {
+            layoutItem: LayoutItem;
+            paletteItem: PaletteItem | undefined;
+          }): entry is { layoutItem: LayoutItem; paletteItem: PaletteItem } =>
             Boolean(entry.paletteItem) && entry.layoutItem.contentEnabled,
         ),
     [layout],
@@ -251,12 +208,12 @@ export default function CreatePage() {
       return;
     }
 
-    const existing = layout.find((item) => item.instanceId === draggingId);
+    const existing = layout.find((item: LayoutItem) => item.instanceId === draggingId);
     const created = existing ? null : createLayoutFromPalette(draggingId);
 
-    setLayout((current) => {
+    setLayout((current: LayoutItem[]) => {
       const next = [...current];
-      const currentIndex = next.findIndex((item) => item.instanceId === draggingId);
+      const currentIndex = next.findIndex((item: LayoutItem) => item.instanceId === draggingId);
 
       if (currentIndex >= 0) {
         const [moved] = next.splice(currentIndex, 1);
@@ -282,10 +239,10 @@ export default function CreatePage() {
       return;
     }
 
-    const existing = layout.find((item) => item.instanceId === draggingId);
+    const existing = layout.find((item: LayoutItem) => item.instanceId === draggingId);
     const created = existing ? null : createLayoutFromPalette(draggingId);
 
-    setLayout((current) => {
+    setLayout((current: LayoutItem[]) => {
       if (existing || !created) {
         return current;
       }
@@ -298,8 +255,8 @@ export default function CreatePage() {
   };
 
   const handleRemove = (instanceId: string) => {
-    setLayout((current) => {
-      const next = current.filter((item) => item.instanceId !== instanceId);
+    setLayout((current: LayoutItem[]) => {
+      const next = current.filter((item: LayoutItem) => item.instanceId !== instanceId);
       if (!next.length) {
         return current;
       }
@@ -320,11 +277,9 @@ export default function CreatePage() {
       return;
     }
 
-    setLayout((current) =>
-      current.map((item) =>
-        item.instanceId === selectedLayoutItem.instanceId
-          ? { ...item, [field]: value }
-          : item,
+    setLayout((current: LayoutItem[]) =>
+      current.map((item: LayoutItem) =>
+        item.instanceId === selectedLayoutItem.instanceId ? { ...item, [field]: value } : item,
       ),
     );
   };
@@ -334,23 +289,85 @@ export default function CreatePage() {
       return;
     }
 
-    setEditorDraft({
+    const nextDraft = {
       instanceId: selectedLayoutItem.instanceId,
       contentText: selectedLayoutItem.contentText,
       backgroundImage: cloneAsset(selectedLayoutItem.backgroundImage),
       attachments: cloneAssets(selectedLayoutItem.attachments),
+    };
+
+    setEditorDraft(nextDraft);
+    setEditorHistory({
+      past: [],
+      future: [],
     });
   };
 
-  const closeEditor = () => setEditorDraft(null);
+  const closeEditor = () => {
+    setEditorDraft(null);
+    setEditorHistory({
+      past: [],
+      future: [],
+    });
+  };
+
+  const updateEditorDraft = (nextDraft: EditorDraft) => {
+    setEditorDraft((current) => {
+      if (!current) {
+        return nextDraft;
+      }
+
+      setEditorHistory((history) => ({
+        past: [...history.past, current],
+        future: [],
+      }));
+
+      return nextDraft;
+    });
+  };
+
+  const undoEditorDraft = () => {
+    setEditorHistory((history) => {
+      if (!editorDraft || history.past.length === 0) {
+        return history;
+      }
+
+      const previousDraft = history.past[history.past.length - 1];
+      const nextPast = history.past.slice(0, -1);
+
+      setEditorDraft(previousDraft);
+
+      return {
+        past: nextPast,
+        future: [editorDraft, ...history.future],
+      };
+    });
+  };
+
+  const redoEditorDraft = () => {
+    setEditorHistory((history) => {
+      if (!editorDraft || history.future.length === 0) {
+        return history;
+      }
+
+      const [nextDraft, ...remainingFuture] = history.future;
+
+      setEditorDraft(nextDraft);
+
+      return {
+        past: [...history.past, editorDraft],
+        future: remainingFuture,
+      };
+    });
+  };
 
   const confirmEditor = () => {
     if (!editorDraft) {
       return;
     }
 
-    setLayout((current) =>
-      current.map((item) =>
+    setLayout((current: LayoutItem[]) =>
+      current.map((item: LayoutItem) =>
         item.instanceId === editorDraft.instanceId
           ? {
               ...item,
@@ -370,7 +387,7 @@ export default function CreatePage() {
       return;
     }
 
-    setEditorDraft({
+    updateEditorDraft({
       ...editorDraft,
       contentText: `${editorDraft.contentText}${emoji}`,
     });
@@ -386,7 +403,7 @@ export default function CreatePage() {
       return;
     }
 
-    setEditorDraft({
+    updateEditorDraft({
       ...editorDraft,
       backgroundImage: await toBinaryAsset(file),
     });
@@ -398,8 +415,10 @@ export default function CreatePage() {
       return;
     }
 
-    const assets = await Promise.all(Array.from(event.target.files).map(toBinaryAsset));
-    setEditorDraft({
+    const assets = await Promise.all(
+      Array.from(event.target.files).map((file) => toBinaryAsset(file)),
+    );
+    updateEditorDraft({
       ...editorDraft,
       attachments: [...editorDraft.attachments, ...assets],
     });
@@ -411,9 +430,20 @@ export default function CreatePage() {
       return;
     }
 
-    setEditorDraft({
+    updateEditorDraft({
       ...editorDraft,
-      attachments: editorDraft.attachments.filter((asset) => asset.id !== assetId),
+      attachments: editorDraft.attachments.filter((asset: BinaryAsset) => asset.id !== assetId),
+    });
+  };
+
+  const insertAttachmentImage = (asset: BinaryAsset) => {
+    if (!editorDraft || !asset.type.startsWith("image/")) {
+      return;
+    }
+
+    updateEditorDraft({
+      ...editorDraft,
+      contentText: `${editorDraft.contentText}\n![${asset.name}](${asset.name})`,
     });
   };
 
@@ -422,7 +452,7 @@ export default function CreatePage() {
       return;
     }
 
-    setEditorDraft({
+    updateEditorDraft({
       ...editorDraft,
       contentText: `${editorDraft.contentText}\n[file:${asset.name}]`,
     });
@@ -435,7 +465,7 @@ export default function CreatePage() {
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-xs uppercase tracking-[0.28em] text-[#f0c39f]/80">Home Creator</p>
-              <h1 className="mt-3 text-3xl font-semibold leading-tight">메인 레이아웃 구성</h1>
+              <h1 className="mt-3 text-3xl font-semibold leading-tight">메인 페이지 구성</h1>
             </div>
             <span className="rounded-full border border-white/15 px-3 py-1 text-xs">/create</span>
           </div>
@@ -473,7 +503,7 @@ export default function CreatePage() {
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="text-sm uppercase tracking-[0.24em] text-[#b66537]">Layout Workspace</p>
-              <h2 className="mt-2 text-3xl font-semibold">직접 배치하는 메인 홈 캔버스</h2>
+              <h2 className="mt-2 text-3xl font-semibold">메인 캔버스를 직접 배치합니다</h2>
             </div>
             <div className="flex flex-wrap gap-2 text-sm">
               <button
@@ -560,11 +590,11 @@ export default function CreatePage() {
 
                     {layoutItem.contentEnabled ? (
                       <div className="mt-5 rounded-[18px] bg-black/6 p-4 backdrop-blur-[1px]">
-                        <div className="space-y-2 font-mono text-sm leading-6">
-                          {layoutItem.contentText.split("\n").map((line, lineIndex) => (
-                            <p key={`${layoutItem.instanceId}-${lineIndex}`}>{line}</p>
-                          ))}
-                        </div>
+                        <ContentBlocks
+                          contentText={layoutItem.contentText}
+                          attachments={layoutItem.attachments}
+                          lineKeyPrefix={layoutItem.instanceId}
+                        />
                         {layoutItem.attachments.length > 0 ? (
                           <div className="mt-4 flex flex-wrap gap-2">
                             {layoutItem.attachments.map((asset) => (
@@ -598,7 +628,7 @@ export default function CreatePage() {
               >
                 <p className="text-sm uppercase tracking-[0.22em] text-[#b66537]">Drop Zone</p>
                 <p className="mt-3 text-lg font-semibold text-stone-800">
-                  새 블록을 여기에 드롭해서 캔버스에 추가
+                  새 블록을 여기로 드래그해서 캔버스에 추가하세요
                 </p>
               </button>
             </div>
@@ -623,7 +653,7 @@ export default function CreatePage() {
 
             <div className="mt-5 space-y-4">
               <label className="block">
-                <span className="mb-2 block text-sm font-medium text-stone-700">Col 수</span>
+                <span className="mb-2 block text-sm font-medium text-stone-700">컬럼 수</span>
                 <select
                   value={selectedLayoutItem?.cols ?? 12}
                   onChange={(event) => updateSelected("cols", Number(event.target.value))}
@@ -655,7 +685,7 @@ export default function CreatePage() {
               <label className="flex items-center justify-between rounded-[20px] border border-black/10 bg-[#faf7f1] px-4 py-3">
                 <div>
                   <p className="text-sm font-medium text-stone-800">콘텐츠 사용</p>
-                  <p className="text-xs text-stone-500">미리보기 표시 여부</p>
+                  <p className="text-xs text-stone-500">미리보기에서 이 블록을 표시합니다</p>
                 </div>
                 <button
                   type="button"
@@ -674,15 +704,15 @@ export default function CreatePage() {
                 <div className="rounded-[22px] border border-black/10 bg-[#faf7f1] p-4">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-sm font-semibold text-stone-800">콘텐츠 내용</p>
-                      <p className="mt-1 text-xs text-stone-500">
-                        메모장형 에디터에서 내용, 배경 이미지, 파일을 편집
+                      <p className="text-sm font-semibold text-stone-800">콘텐츠 편집</p>
+                      <p className="text-xs text-stone-500">
+                        메모형 에디터에서 내용, 배경 이미지, 첨부 파일을 수정합니다
                       </p>
                     </div>
                     <button
                       type="button"
                       onClick={openEditor}
-                      className="rounded-full border border-black/10 bg-white px-4 py-2 text-sm"
+                      className="rounded-full border border-black/10 bg-white px-2 py-2 text-sm"
                     >
                       변경
                     </button>
@@ -695,247 +725,29 @@ export default function CreatePage() {
       </div>
 
       {isPreviewOpen ? (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/55 p-4">
-          <div className="flex max-h-[92vh] w-full max-w-[1500px] flex-col overflow-hidden rounded-[30px] bg-[#fbf6ef] shadow-[0_36px_120px_rgba(0,0,0,0.35)]">
-            <div className="flex items-center justify-between border-b border-black/10 px-6 py-5">
-              <div>
-                <p className="text-xs uppercase tracking-[0.24em] text-[#b66537]">Preview</p>
-                <h3 className="mt-2 text-2xl font-semibold">배치 결과 미리보기</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsPreviewOpen(false)}
-                className="rounded-full border border-black/10 bg-white px-4 py-2 text-sm"
-              >
-                닫기
-              </button>
-            </div>
-
-            <div className="overflow-auto px-5 py-5">
-              <div className="grid grid-cols-12 gap-3 rounded-[26px] bg-white/60 p-4">
-                {previewItems.map(({ layoutItem, paletteItem }) => {
-                  const backgroundUrl = binaryToDataUrl(layoutItem.backgroundImage);
-
-                  return (
-                    <div key={layoutItem.instanceId} className={colClass(layoutItem.cols)}>
-                      <div
-                        className={`rounded-[24px] border border-black/8 p-5 ${paletteItem.cardClassName}`}
-                        style={
-                          backgroundUrl
-                            ? {
-                                backgroundImage: `linear-gradient(rgba(20,20,20,0.22), rgba(20,20,20,0.22)), url(${backgroundUrl})`,
-                                backgroundSize: "cover",
-                                backgroundPosition: "center",
-                              }
-                            : undefined
-                        }
-                      >
-                        <div
-                          className="overflow-y-auto rounded-[18px] bg-black/6 p-4 backdrop-blur-[1px]"
-                          style={{ height: `${layoutItem.contentHeight}px` }}
-                        >
-                          <div className="space-y-2 font-mono text-sm leading-6">
-                            {layoutItem.contentText.split("\n").map((line, lineIndex) => (
-                              <p key={`${layoutItem.instanceId}-preview-${lineIndex}`}>{line}</p>
-                            ))}
-                          </div>
-                          {layoutItem.attachments.length > 0 ? (
-                            <div className="mt-4 flex flex-wrap gap-2">
-                              {layoutItem.attachments.map((asset) => (
-                                <span
-                                  key={asset.id}
-                                  className="rounded-full border border-current/15 px-3 py-1 text-xs"
-                                >
-                                  {asset.name}
-                                </span>
-                              ))}
-                            </div>
-                          ) : null}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
+        <PreviewModal items={previewItems} onClose={() => setIsPreviewOpen(false)} />
       ) : null}
 
       {editorDraft ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="flex max-h-[94vh] w-full max-w-[1120px] flex-col overflow-hidden rounded-[30px] bg-[#fcf7f1] shadow-[0_30px_90px_rgba(0,0,0,0.35)]">
-            <div className="flex items-center justify-between border-b border-black/10 px-6 py-5">
-              <div>
-                <p className="text-xs uppercase tracking-[0.24em] text-[#b66537]">Content Editor</p>
-                <h3 className="mt-2 text-2xl font-semibold">콘텐츠 편집</h3>
-              </div>
-              <button
-                type="button"
-                onClick={closeEditor}
-                className="rounded-full border border-black/10 bg-white px-4 py-2 text-sm"
-              >
-                취소
-              </button>
-            </div>
-
-            <div className="grid gap-5 overflow-auto px-6 py-6 lg:grid-cols-[1.45fr_0.95fr]">
-              <section className="space-y-4">
-                <div className="rounded-[24px] border border-black/10 bg-white p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-semibold text-stone-800">메모장 에디터</p>
-                    <div className="flex flex-wrap gap-2">
-                      {emojiOptions.map((emoji) => (
-                        <button
-                          key={emoji}
-                          type="button"
-                          onClick={() => appendEmoji(emoji)}
-                          className="rounded-full border border-black/10 bg-[#faf7f1] px-3 py-1 text-sm"
-                        >
-                          {emoji}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <textarea
-                    value={editorDraft.contentText}
-                    onChange={(event) =>
-                      setEditorDraft({
-                        ...editorDraft,
-                        contentText: event.target.value,
-                      })
-                    }
-                    className="mt-4 min-h-[340px] w-full rounded-[20px] border border-black/10 bg-[#fffdfa] p-4 font-mono text-sm leading-6 outline-none"
-                    placeholder="Markdown 또는 메모 내용을 입력하세요."
-                  />
-                </div>
-
-                <div className="rounded-[24px] border border-black/10 bg-white p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-stone-800">파일 첨부</p>
-                      <p className="mt-1 text-xs text-stone-500">
-                        업로드한 파일은 바이너리 배열로 상태에 저장됩니다.
-                      </p>
-                    </div>
-                    <label className="cursor-pointer rounded-full border border-black/10 bg-[#faf7f1] px-4 py-2 text-sm">
-                      파일 추가
-                      <input
-                        type="file"
-                        multiple
-                        className="hidden"
-                        onChange={uploadAttachments}
-                      />
-                    </label>
-                  </div>
-
-                  <div className="mt-4 space-y-3">
-                    {editorDraft.attachments.length > 0 ? (
-                      editorDraft.attachments.map((asset) => (
-                        <div
-                          key={asset.id}
-                          className="flex items-center justify-between gap-3 rounded-[18px] border border-black/10 bg-[#fffdfa] px-4 py-3"
-                        >
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-medium text-stone-800">{asset.name}</p>
-                            <p className="text-xs text-stone-500">
-                              {asset.type} / {asset.size.toLocaleString()} bytes / binary[{asset.bytes.length}]
-                            </p>
-                          </div>
-                          <div className="flex shrink-0 gap-2">
-                            <button
-                              type="button"
-                              onClick={() => insertAttachmentTag(asset)}
-                              className="rounded-full border border-black/10 bg-white px-3 py-1 text-xs"
-                            >
-                              태그 삽입
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => removeAttachment(asset.id)}
-                              className="rounded-full border border-black/10 bg-white px-3 py-1 text-xs"
-                            >
-                              제거
-                            </button>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="rounded-[18px] border border-dashed border-black/10 px-4 py-6 text-sm text-stone-500">
-                        아직 첨부된 파일이 없습니다.
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </section>
-
-              <section className="space-y-4">
-                <div className="rounded-[24px] border border-black/10 bg-white p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-stone-800">배경 이미지</p>
-                      <p className="mt-1 text-xs text-stone-500">이미지도 바이너리 배열로 저장됩니다.</p>
-                    </div>
-                    <label className="cursor-pointer rounded-full border border-black/10 bg-[#faf7f1] px-4 py-2 text-sm">
-                      이미지 선택
-                      <input type="file" accept="image/*" className="hidden" onChange={uploadBackground} />
-                    </label>
-                  </div>
-
-                  <div className="mt-4 overflow-hidden rounded-[22px] border border-black/10 bg-[#f7efe5]">
-                    {draftBackgroundUrl ? (
-                      <div
-                        className="h-[220px] bg-cover bg-center"
-                        style={{ backgroundImage: `url(${draftBackgroundUrl})` }}
-                      />
-                    ) : (
-                      <div className="flex h-[220px] items-center justify-center text-sm text-stone-500">
-                        선택된 배경 이미지가 없습니다.
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="rounded-[24px] border border-black/10 bg-white p-4">
-                  <p className="text-sm font-semibold text-stone-800">에디터 미리보기</p>
-                  <div
-                    className="mt-4 overflow-y-auto rounded-[22px] border border-black/10 bg-[#fffdfa] p-4 font-mono text-sm leading-6"
-                    style={{
-                      height: `${selectedLayoutItem?.contentHeight ?? 120}px`,
-                      backgroundImage: draftBackgroundUrl
-                        ? `linear-gradient(rgba(20,20,20,0.18), rgba(20,20,20,0.18)), url(${draftBackgroundUrl})`
-                        : undefined,
-                      backgroundSize: "cover",
-                      backgroundPosition: "center",
-                    }}
-                  >
-                    {editorDraft.contentText.split("\n").map((line, lineIndex) => (
-                      <p key={`draft-${lineIndex}`}>{line || "\u00A0"}</p>
-                    ))}
-                  </div>
-                </div>
-              </section>
-            </div>
-
-            <div className="flex justify-end gap-3 border-t border-black/10 px-6 py-5">
-              <button
-                type="button"
-                onClick={closeEditor}
-                className="rounded-full border border-black/10 bg-white px-5 py-2 text-sm"
-              >
-                취소
-              </button>
-              <button
-                type="button"
-                onClick={confirmEditor}
-                className="rounded-full bg-[#203b35] px-5 py-2 text-sm text-white"
-              >
-                확인
-              </button>
-            </div>
-          </div>
-        </div>
+        <ContentEditorModal
+          draft={editorDraft}
+          emojiOptions={emojiOptions}
+          draftBackgroundUrl={draftBackgroundUrl}
+          previewHeight={selectedLayoutItem?.contentHeight ?? 120}
+          canUndo={editorHistory.past.length > 0}
+          canRedo={editorHistory.future.length > 0}
+          onClose={closeEditor}
+          onConfirm={confirmEditor}
+          onDraftChange={updateEditorDraft}
+          onUndo={undoEditorDraft}
+          onRedo={redoEditorDraft}
+          onAppendEmoji={appendEmoji}
+          onUploadBackground={uploadBackground}
+          onUploadAttachments={uploadAttachments}
+          onRemoveAttachment={removeAttachment}
+          onInsertAttachmentImage={insertAttachmentImage}
+          onInsertAttachmentTag={insertAttachmentTag}
+        />
       ) : null}
     </main>
   );
