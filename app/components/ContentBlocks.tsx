@@ -1,6 +1,6 @@
 "use client";
 
-import { binaryToDataUrl, type BinaryAsset } from "./shared";
+import { binaryToDataUrl, type BinaryAsset } from "../utils/shared";
 
 type ContentBlocksProps = {
   contentText: string;

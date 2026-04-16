@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { LanguageSelect } from "./components/LanguageSelect";
+import { I18nProvider } from "./utils/i18n";
 
 export const metadata: Metadata = {
   title: "HAMS HP Palette",
@@ -13,7 +15,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko" className="h-full antialiased">
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <I18nProvider>
+          <LanguageSelect />
+          {children}
+        </I18nProvider>
+      </body>
     </html>
   );
 }
