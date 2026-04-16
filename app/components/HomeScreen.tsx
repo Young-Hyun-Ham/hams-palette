@@ -66,6 +66,10 @@ export function HomeScreen({ templates }: { templates: DashboardTemplate[] }) {
                   {template.description || t("no description")}
                 </p>
 
+                <p className="mt-3 text-xs text-stone-500">
+                  /{template.userId}/{template.templateKey}
+                </p>
+
                 <div className="mt-6 flex items-center justify-between text-xs text-stone-500">
                   <span>
                     {t("updated")} {formatDate(template.updatedAt)}

@@ -31,6 +31,12 @@ function PreviewBlock({
   paletteItem: PaletteItem;
   compact?: boolean;
 }) {
+  if (!layoutItem.contentEnabled) {
+    const hiddenHeight = compact ? "100%" : `${layoutItem.contentHeight}px`;
+
+    return <div aria-hidden="true" className="rounded-[18px]" style={{ height: hiddenHeight }} />;
+  }
+
   const backgroundUrl = binaryToDataUrl(layoutItem.backgroundImage);
   const [activeTabId, setActiveTabId] = useState(
     () => layoutItem.activeTabId ?? layoutItem.tabs?.[0]?.id,
@@ -98,6 +104,7 @@ function PreviewBlock({
         contentText={layoutItem.contentText}
         attachments={layoutItem.attachments}
         lineKeyPrefix={`${layoutItem.instanceId}-preview`}
+        openLinksInNewTab={layoutItem.paletteId === "menu"}
       />
     </div>
   );

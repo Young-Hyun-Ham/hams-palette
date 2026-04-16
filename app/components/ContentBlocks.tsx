@@ -6,6 +6,8 @@ type ContentBlocksProps = {
   contentText: string;
   attachments: BinaryAsset[];
   lineKeyPrefix: string;
+  linkResolver?: (href: string) => string;
+  openLinksInNewTab?: boolean;
 };
 
 const imageTagPattern = /^!\[(.*?)\]\((.*?)\)$/;
@@ -24,14 +26,23 @@ function escapeHtml(text: string) {
     .replaceAll(">", "&gt;");
 }
 
-function formatInlineHtml(text: string) {
+function formatInlineHtml(
+  text: string,
+  linkResolver?: (href: string) => string,
+  openLinksInNewTab?: boolean,
+) {
   let html = escapeHtml(text);
 
   html = html.replace(
     /\[size:(\d+)\]([\s\S]*?)\[\/size\]/g,
     (_, size: string, content: string) =>
-      `<span style="font-size:${Number(size)}px">${formatInlineHtml(content)}</span>`,
+      `<span style="font-size:${Number(size)}px">${formatInlineHtml(content, linkResolver, openLinksInNewTab)}</span>`,
   );
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label: string, href: string) => {
+    const resolvedHref = escapeHtml(linkResolver ? linkResolver(href) : href);
+    const target = openLinksInNewTab ? ` target="_blank" rel="noreferrer noopener"` : "";
+    return `<a href="${resolvedHref}" class="underline underline-offset-4"${target}>${label}</a>`;
+  });
   html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
   html = html.replace(/\*(.+?)\*/g, "<em>$1</em>");
   html = html.replace(/~~(.+?)~~/g, "<s>$1</s>");
@@ -43,6 +54,8 @@ export function ContentBlocks({
   contentText,
   attachments,
   lineKeyPrefix,
+  linkResolver,
+  openLinksInNewTab,
 }: ContentBlocksProps) {
   return (
     <div className="space-y-2">
@@ -79,7 +92,7 @@ export function ContentBlocks({
             key={`${lineKeyPrefix}-${lineIndex}`}
             style={{ textAlign: textAlign as "left" | "center" | "right" }}
             dangerouslySetInnerHTML={{
-              __html: line ? formatInlineHtml(line) : "&nbsp;",
+              __html: line ? formatInlineHtml(line, linkResolver, openLinksInNewTab) : "&nbsp;",
             }}
           />
         );

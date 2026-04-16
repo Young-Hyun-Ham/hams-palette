@@ -17,8 +17,14 @@ export default function RootLayout({
     <html lang="ko" className="h-full antialiased">
       <body className="min-h-full flex flex-col">
         <I18nProvider>
-          <LanguageSelect />
-          {children}
+          <div className="px-6 pt-6">
+            <div className="mx-auto flex w-full max-w-[1880px] justify-end">
+              <LanguageSelect />
+            </div>
+          </div>
+          <div className="flex-1">
+            {children}
+          </div>
         </I18nProvider>
       </body>
     </html>

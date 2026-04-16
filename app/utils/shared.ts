@@ -11,6 +11,7 @@ export type BinaryAsset = {
 export type PaletteItem = {
   id: string;
   name: string;
+  category: "layer" | "tab" | "menu";
   tone: string;
   sizeLabel: string;
   defaultCols: number;
@@ -31,6 +32,7 @@ export type LayoutItem = {
   instanceId: string;
   paletteId: string;
   cols: number;
+  frameHeight?: number;
   contentHeight: number;
   contentEnabled: boolean;
   contentText: string;
@@ -52,6 +54,8 @@ export type EditorDraft = {
 
 export type DashboardTemplate = {
   id: string;
+  userId: string;
+  templateKey: string;
   title: string;
   description: string;
   createdAt: string;
@@ -61,100 +65,68 @@ export type DashboardTemplate = {
 
 export const paletteItems: PaletteItem[] = [
   {
-    id: "hero",
-    name: "Hero",
-    tone: "Primary Visual",
+    id: "layer",
+    name: "Layer Palette",
+    category: "layer",
+    tone: "Flexible Content Area",
     sizeLabel: "12 Col",
     defaultCols: 12,
-    defaultContentHeight: 180,
-    cardClassName: "bg-[#d86c3b] text-white",
-    defaultContent: "# Main Hero\nKey visual headline\nCTA and notice message",
-  },
-  {
-    id: "intro",
-    name: "Intro",
-    tone: "Text + Image",
-    sizeLabel: "6 Col",
-    defaultCols: 6,
-    defaultContentHeight: 140,
-    cardClassName: "bg-[#fff7ee] text-stone-900",
-    defaultContent: "## Intro Section\nBrand message\nMore editable text",
-  },
-  {
-    id: "visual",
-    name: "Visual",
-    tone: "Media Slot",
-    sizeLabel: "6 Col",
-    defaultCols: 6,
     defaultContentHeight: 160,
-    cardClassName: "bg-[#1f3b35] text-white",
-    defaultContent: "![cover](hero.jpg)\nVisual caption\nMedia description",
+    cardClassName: "bg-[#fff7ee] text-stone-900",
+    defaultContent: "## Layer Palette",
   },
   {
     id: "tabs",
-    name: "Tabs",
+    name: "Tab Palette",
+    category: "tab",
     tone: "Tabbed Content",
     sizeLabel: "12 Col",
     defaultCols: 12,
     defaultContentHeight: 240,
     cardClassName: "bg-[#f0e4d5] text-stone-900",
-    defaultContent: "",
+    defaultContent: "## Tab Palette",
     supportsTabs: true,
     defaultTabCount: 3,
   },
   {
-    id: "notice",
-    name: "Notice",
-    tone: "Markdown Feed",
-    sizeLabel: "4 Col",
-    defaultCols: 4,
-    defaultContentHeight: 120,
-    cardClassName: "bg-[#fbf4ea] text-stone-900",
-    defaultContent: "### Notice\n- Event notice\n- Operating info\n- Markdown list",
-  },
-  {
-    id: "program",
-    name: "Program",
-    tone: "Card Grid",
-    sizeLabel: "4 Col",
-    defaultCols: 4,
-    defaultContentHeight: 120,
-    cardClassName: "bg-[#fbf4ea] text-stone-900",
-    defaultContent: "### Program\n- Class schedule\n- Speaker block\n- Summary",
-  },
-  {
-    id: "cta",
-    name: "CTA",
-    tone: "Action Area",
-    sizeLabel: "4 Col",
-    defaultCols: 4,
-    defaultContentHeight: 120,
-    cardClassName: "bg-[#fbf4ea] text-stone-900",
-    defaultContent: "### CTA\n- Reservation link\n- Inquiry button\n- Contact note",
-  },
-  {
-    id: "footer",
-    name: "Footer",
-    tone: "Contact / Links",
+    id: "menu",
+    name: "Menu Palette",
+    category: "menu",
+    tone: "Navigation Menu",
     sizeLabel: "12 Col",
     defaultCols: 12,
-    defaultContentHeight: 100,
-    cardClassName: "bg-[#e5d3bc] text-stone-900",
-    defaultContent: "#### Footer\nAddress / Contact / Opening hours / Links",
+    defaultContentHeight: 90,
+    cardClassName: "bg-[#e7efe6] text-stone-900",
+    defaultContent: "## Menu Palette",
   },
 ];
 
+export const paletteCategoryLabels = {
+  layer: "Layer Palette",
+  tab: "Tab Palette",
+  menu: "Menu Palette",
+} as const;
+
 export function findPaletteItem(id: string) {
-  return paletteItems.find((item) => item.id === id);
+  const legacyLayerIds = new Set(["hero", "intro", "visual", "program", "notice", "cta", "footer"]);
+  const normalizedId = legacyLayerIds.has(id) ? "layer" : id;
+
+  return paletteItems.find((item) => item.id === normalizedId);
 }
 
 export function colClass(cols: number) {
   const map: Record<number, string> = {
+    1: "col-span-12 lg:col-span-1",
     2: "col-span-12 lg:col-span-2",
     3: "col-span-12 lg:col-span-3",
     4: "col-span-12 lg:col-span-4",
+    5: "col-span-12 lg:col-span-5",
     6: "col-span-12 lg:col-span-6",
+    7: "col-span-12 lg:col-span-7",
     8: "col-span-12 lg:col-span-8",
+    9: "col-span-12 lg:col-span-9",
+    10: "col-span-12 lg:col-span-10",
+    11: "col-span-12 lg:col-span-11",
     12: "col-span-12 lg:col-span-12",
   };
 

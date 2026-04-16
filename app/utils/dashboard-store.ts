@@ -3,10 +3,18 @@ import "server-only";
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "crypto";
 import { promises as fs } from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
 
-import type { BinaryAsset, DashboardTemplate, LayoutItem, TabPane } from "@/app/utils/shared";
+import {
+  type BinaryAsset,
+  type DashboardTemplate,
+  type LayoutItem,
+  type TabPane,
+} from "@/app/utils/shared";
+import { slugifyTemplateKey } from "@/app/utils/template-key";
 
-const DASHBOARD_PATH = path.join(process.cwd(), "data", "dashboard.json");
+const APP_UTILS_DIR = path.dirname(fileURLToPath(import.meta.url));
+const DASHBOARD_PATH = path.resolve(APP_UTILS_DIR, "../../data/dashboard.json");
 const ENCRYPTION_BLOCK_SIZE = 256;
 const SECRET_SEED =
   process.env.HAMS_PALETTE_ASSET_SECRET ?? "hams-palette-dashboard-asset-secret";
@@ -29,6 +37,14 @@ type StoredTabPane = Omit<TabPane, "layout"> & {
 type StoredDashboardTemplate = Omit<DashboardTemplate, "layout"> & {
   layout: StoredLayoutItem[];
 };
+
+function normalizeTemplate(template: DashboardTemplate): DashboardTemplate {
+  return {
+    ...template,
+    userId: template.userId?.trim() || "hyh8414",
+    templateKey: slugifyTemplateKey(template.templateKey || template.title || template.id),
+  };
+}
 
 function packBytes(bytes: number[]) {
   const payload = Buffer.from(bytes);
@@ -135,17 +151,19 @@ function deserializeTabPane(tab: StoredTabPane): TabPane {
 }
 
 function serializeTemplate(template: DashboardTemplate): StoredDashboardTemplate {
+  const normalized = normalizeTemplate(template);
+
   return {
-    ...template,
-    layout: template.layout.map(serializeLayoutItem),
+    ...normalized,
+    layout: normalized.layout.map(serializeLayoutItem),
   };
 }
 
 function deserializeTemplate(template: StoredDashboardTemplate): DashboardTemplate {
-  return {
+  return normalizeTemplate({
     ...template,
     layout: template.layout.map(deserializeLayoutItem),
-  };
+  });
 }
 
 async function ensureDashboardFile() {
@@ -182,10 +200,24 @@ export async function readDashboardTemplate(id: string) {
   return templates.find((template) => template.id === id) ?? null;
 }
 
+export async function readDashboardTemplateByRoute(userId: string, templateKey: string) {
+  const normalizedUserId = userId.trim();
+  const normalizedTemplateKey = slugifyTemplateKey(templateKey);
+  const templates = await readDashboardTemplates();
+
+  return (
+    templates.find(
+      (template) =>
+        template.userId === normalizedUserId && template.templateKey === normalizedTemplateKey,
+    ) ?? null
+  );
+}
+
 export async function upsertDashboardTemplate(template: DashboardTemplate) {
   const templates = await readStoredTemplates();
-  const serialized = serializeTemplate(template);
-  const index = templates.findIndex((entry) => entry.id === template.id);
+  const normalized = normalizeTemplate(template);
+  const serialized = serializeTemplate(normalized);
+  const index = templates.findIndex((entry) => entry.id === normalized.id);
 
   if (index >= 0) {
     templates[index] = serialized;

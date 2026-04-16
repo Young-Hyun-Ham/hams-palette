@@ -8,6 +8,7 @@ import { ContentEditorModal } from "@/app/components/ContentEditorModal";
 import { ContentBlocks } from "@/app/components/ContentBlocks";
 import { PreviewModal } from "@/app/components/PreviewModal";
 import { useI18n } from "@/app/utils/i18n";
+import { slugifyTemplateKey } from "@/app/utils/template-key";
 import {
   binaryToDataUrl,
   colClass,
@@ -20,8 +21,9 @@ import {
   type TabPane,
 } from "@/app/utils/shared";
 
-const defaultLayoutIds = ["hero", "intro", "visual", "program", "notice", "cta", "footer"];
-const colOptions = [2, 3, 4, 6, 8, 12];
+const defaultLayoutIds = ["layer", "layer", "layer", "layer", "layer", "layer", "layer"];
+const colOptions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+const frameHeightOptions = Array.from({ length: 41 }, (_, index) => (index + 2) * 20);
 const tabCountOptions = [2, 3, 4, 5];
 const contentHeightOptions = Array.from({ length: 35 }, (_, index) => (index + 1) * 10);
 const emojiOptions = ["😀", "😁", "😂", "😍", "😎", "🔥", "✨", "🎉", "💡", "📌", "🌿", "🚀"];
@@ -109,6 +111,7 @@ function makeLayoutItem(paletteId: string, index: number): LayoutItem {
     instanceId,
     paletteId,
     cols: item?.defaultCols ?? 12,
+    frameHeight: item?.defaultContentHeight ?? 120,
     contentHeight: item?.defaultContentHeight ?? 120,
     contentEnabled: true,
     contentText: item?.defaultContent ?? "",
@@ -142,6 +145,8 @@ function makeNewTemplate(): DashboardTemplate {
 
   return {
     id: `tpl-${Date.now()}`,
+    userId: "hyh8414",
+    templateKey: "home",
     title: "New Template",
     description: "",
     createdAt: now,
@@ -162,6 +167,17 @@ function BlockPreview({
   if (!paletteItem) {
     return null;
   }
+  const previewHeight = layoutItem.frameHeight ?? layoutItem.contentHeight;
+  const containerHeight = compact ? `${previewHeight}px` : "100%";
+
+  if (!layoutItem.contentEnabled) {
+    return (
+      <div
+        className={`${compact ? "" : "mt-5 flex-1 min-h-0 rounded-[18px] border border-dashed border-current/20 bg-white/30 p-4"} overflow-y-auto`}
+        style={{ height: containerHeight }}
+      />
+    );
+  }
 
   const backgroundUrl = binaryToDataUrl(layoutItem.backgroundImage);
   const activeTab =
@@ -169,7 +185,10 @@ function BlockPreview({
 
   if (layoutItem.paletteId === "tabs") {
     return (
-      <div className="mt-5 rounded-[18px] border border-black/10 bg-white/60 p-4">
+      <div
+        className={`flex flex-col overflow-hidden rounded-[18px] border border-black/10 bg-white/60 p-4 ${compact ? "" : "mt-5 flex-1 min-h-0"}`}
+        style={{ height: containerHeight }}
+      >
         <div className="flex flex-wrap gap-2">
           {(layoutItem.tabs ?? []).map((tab) => (
             <span
@@ -185,7 +204,7 @@ function BlockPreview({
           ))}
         </div>
 
-        <div className="mt-4 grid grid-cols-12 gap-3">
+        <div className="mt-4 grid flex-1 grid-cols-12 gap-3 overflow-y-auto">
           {(activeTab?.layout ?? []).map((child, index) => {
             const childPalette = findPaletteItem(child.paletteId);
             if (!childPalette) {
@@ -216,10 +235,11 @@ function BlockPreview({
 
   return (
     <div
-      className={`${compact ? "" : "mt-5 rounded-[18px] bg-black/6 p-4 backdrop-blur-[1px]"} `}
+      className={`${compact ? "" : "mt-5 flex-1 min-h-0 rounded-[18px] bg-black/6 p-4 backdrop-blur-[1px]"} overflow-y-auto`}
       style={
         backgroundUrl
           ? {
+              height: containerHeight,
               backgroundColor: layoutItem.backgroundColor,
               backgroundImage: `linear-gradient(rgba(20,20,20,0.22), rgba(20,20,20,0.22)), url(${backgroundUrl})`,
               backgroundSize: "cover",
@@ -227,15 +247,19 @@ function BlockPreview({
             }
           : layoutItem.backgroundColor
             ? {
+                height: containerHeight,
                 backgroundColor: layoutItem.backgroundColor,
               }
-            : undefined
+            : {
+                height: containerHeight,
+              }
       }
     >
       <ContentBlocks
         contentText={layoutItem.contentText}
         attachments={layoutItem.attachments}
         lineKeyPrefix={layoutItem.instanceId}
+        openLinksInNewTab={layoutItem.paletteId === "menu"}
       />
       {layoutItem.attachments.length > 0 ? (
         <div className="mt-4 flex flex-wrap gap-2">
@@ -333,7 +357,7 @@ export default function CreatePage() {
         .map((layoutItem) => ({ layoutItem, paletteItem: findPaletteItem(layoutItem.paletteId) }))
         .filter(
           (entry): entry is { layoutItem: LayoutItem; paletteItem: (typeof paletteItems)[number] } =>
-            Boolean(entry.paletteItem) && entry.layoutItem.contentEnabled,
+            Boolean(entry.paletteItem),
         ),
     [layout],
   );
@@ -341,7 +365,6 @@ export default function CreatePage() {
     () => binaryToDataUrl(editorDraft?.backgroundImage ?? null),
     [editorDraft],
   );
-
   const createLayoutFromPalette = (paletteId: string): LayoutItem | null => {
     const item = findPaletteItem(paletteId);
     if (!item) {
@@ -355,6 +378,7 @@ export default function CreatePage() {
       instanceId,
       paletteId,
       cols: item.defaultCols,
+      frameHeight: item.defaultContentHeight,
       contentHeight: item.defaultContentHeight,
       contentEnabled: true,
       contentText: item.defaultContent,
@@ -425,24 +449,36 @@ export default function CreatePage() {
   const handleRemove = (instanceId: string) => {
     setLayout((current) => {
       const next = current.filter((item) => item.instanceId !== instanceId);
-      if (!next.length) {
-        return current;
-      }
-
       if (selectedId === instanceId) {
-        setSelectedId(next[0].instanceId);
+        setSelectedId(next[0]?.instanceId ?? "");
       }
 
       return next;
     });
   };
 
-  const updateSelected = (field: "cols" | "contentHeight" | "contentEnabled", value: number | boolean) => {
+  const updateSelected = (
+    field: "cols" | "frameHeight" | "contentHeight" | "contentEnabled",
+    value: number | boolean,
+  ) => {
     if (!selectedLayoutItem) {
       return;
     }
 
-    updateLayoutItem(selectedLayoutItem.instanceId, (item) => ({ ...item, [field]: value }));
+    updateLayoutItem(selectedLayoutItem.instanceId, (item) => {
+      if (field === "contentHeight" && typeof value === "number") {
+        const nextFrameHeight =
+          typeof item.frameHeight === "number" && item.frameHeight > value ? value : item.frameHeight;
+
+        return {
+          ...item,
+          contentHeight: value,
+          frameHeight: nextFrameHeight,
+        };
+      }
+
+      return { ...item, [field]: value };
+    });
   };
 
   const updateSelectedTabCount = (count: number) => {
@@ -672,6 +708,8 @@ export default function CreatePage() {
 
     const payload: DashboardTemplate = {
       ...templateMeta,
+      userId: templateMeta.userId.trim() || "hyh8414",
+      templateKey: slugifyTemplateKey(templateMeta.templateKey),
       title: templateMeta.title.trim() || t("new template"),
       description: templateMeta.description.trim(),
       updatedAt: new Date().toISOString(),
@@ -686,7 +724,8 @@ export default function CreatePage() {
       });
 
       if (!response.ok) {
-        throw new Error(t("failed to save the template."));
+        const errorPayload = (await response.json().catch(() => null)) as { message?: string } | null;
+        throw new Error(errorPayload?.message || t("failed to save the template."));
       }
 
       const saved = (await response.json()) as DashboardTemplate;
@@ -752,7 +791,15 @@ export default function CreatePage() {
               </div>
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+            <div className="grid gap-4 lg:grid-cols-2">
+              <label className="block rounded-[24px] border border-black/10 bg-[#fcf7f1] p-4">
+                <span className="mb-2 block text-sm font-medium text-stone-700">{t("user id")}</span>
+                <input value={templateMeta.userId} onChange={(event) => setTemplateMeta((current) => ({ ...current, userId: event.target.value }))} className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none" placeholder={t("enter a user id")} />
+              </label>
+              <label className="block rounded-[24px] border border-black/10 bg-[#fcf7f1] p-4">
+                <span className="mb-2 block text-sm font-medium text-stone-700">{t("template id")}</span>
+                <input value={templateMeta.templateKey} onChange={(event) => setTemplateMeta((current) => ({ ...current, templateKey: slugifyTemplateKey(event.target.value) }))} className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none" placeholder={t("enter a template id")} />
+              </label>
               <label className="block rounded-[24px] border border-black/10 bg-[#fcf7f1] p-4">
                 <span className="mb-2 block text-sm font-medium text-stone-700">{t("template title")}</span>
                 <input value={templateMeta.title} onChange={(event) => setTemplateMeta((current) => ({ ...current, title: event.target.value }))} className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none" placeholder={t("enter a template title")} />
@@ -761,6 +808,11 @@ export default function CreatePage() {
                 <span className="mb-2 block text-sm font-medium text-stone-700">{t("description")}</span>
                 <input value={templateMeta.description} onChange={(event) => setTemplateMeta((current) => ({ ...current, description: event.target.value }))} className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none" placeholder={t("short description for the list screen")} />
               </label>
+            </div>
+
+            <div className="rounded-[24px] border border-black/10 bg-[#fcf7f1] p-4 text-sm text-stone-600">
+              <span className="font-medium text-stone-800">{t("public url")}: </span>
+              <span>/{templateMeta.userId || "hyh8414"}/{slugifyTemplateKey(templateMeta.templateKey || "home")}</span>
             </div>
           </div>
 
@@ -778,13 +830,13 @@ export default function CreatePage() {
                 const isSelected = selectedId === layoutItem.instanceId;
 
                 return (
-                  <article key={layoutItem.instanceId} draggable onClick={() => setSelectedId(layoutItem.instanceId)} onDragStart={() => setDraggingId(layoutItem.instanceId)} onDragEnd={() => setDraggingId(null)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); event.stopPropagation(); moveOrInsert(index); }} className={`relative flex flex-col rounded-[24px] border border-black/8 p-5 shadow-[0_12px_24px_rgba(25,20,15,0.05)] ${colClass(layoutItem.cols)} ${item.cardClassName} ${isSelected ? "ring-2 ring-[#d86c3b]" : ""}`}>
+                  <article key={layoutItem.instanceId} draggable onClick={() => setSelectedId(layoutItem.instanceId)} onDragStart={() => setDraggingId(layoutItem.instanceId)} onDragEnd={() => setDraggingId(null)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); event.stopPropagation(); moveOrInsert(index); }} className={`relative flex self-start flex-col overflow-hidden rounded-[24px] border border-black/8 p-5 shadow-[0_12px_24px_rgba(25,20,15,0.05)] ${colClass(layoutItem.cols)} ${item.cardClassName} ${isSelected ? "ring-2 ring-[#d86c3b]" : ""}`} style={{ height: `${layoutItem.frameHeight ?? layoutItem.contentHeight}px` }}>
                     <div className="flex items-center justify-between gap-2">
                       <h3 className="text-xl font-semibold">{frameTitle(t(item.name), index)}</h3>
                       <button type="button" onClick={(event) => { event.stopPropagation(); handleRemove(layoutItem.instanceId); }} className="rounded-full border border-current/15 px-3 py-1 text-xs">{t("remove")}</button>
                     </div>
                     <p className="mt-4 text-sm leading-6 opacity-80">{t(item.tone)}</p>
-                    {layoutItem.contentEnabled ? <BlockPreview layoutItem={layoutItem} /> : <div className="mt-5 rounded-[18px] border border-dashed border-current/20 px-4 py-6 text-sm opacity-70">{t("content is disabled for this block.")}</div>}
+                    <BlockPreview layoutItem={layoutItem} />
                   </article>
                 );
               })}
@@ -825,6 +877,13 @@ export default function CreatePage() {
                 <span className="mb-2 block text-sm font-medium text-stone-700">{t("content height")}</span>
                 <select value={selectedLayoutItem?.contentHeight ?? 120} onChange={(event) => updateSelected("contentHeight", Number(event.target.value))} className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none">
                   {contentHeightOptions.map((option) => <option key={option} value={option}>{option}px</option>)}
+                </select>
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-stone-700">{t("frame height")}</span>
+                <select value={selectedLayoutItem?.frameHeight ?? selectedLayoutItem?.contentHeight ?? 120} onChange={(event) => updateSelected("frameHeight", Number(event.target.value))} className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none">
+                  {frameHeightOptions.map((option) => <option key={option} value={option}>{option}px</option>)}
                 </select>
               </label>
 

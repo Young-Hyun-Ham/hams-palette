@@ -6,7 +6,7 @@ export function LanguageSelect() {
   const { locale, setLocale, t } = useI18n();
 
   return (
-    <div className="fixed right-6 top-6 z-[70] flex items-center gap-2 rounded-full border border-black/10 bg-white/90 px-3 py-2 shadow-[0_10px_24px_rgba(0,0,0,0.08)] backdrop-blur">
+    <div className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-[#fffaf4]/90 px-3 py-2 shadow-[0_8px_18px_rgba(57,43,24,0.08)]">
       <span className="text-xs font-medium text-stone-600">{t("language")}</span>
       <select
         value={locale}

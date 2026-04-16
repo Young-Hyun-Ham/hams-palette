@@ -9,8 +9,14 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const template = (await request.json()) as DashboardTemplate;
-  const saved = await upsertDashboardTemplate(template);
+  try {
+    const template = (await request.json()) as DashboardTemplate;
+    const saved = await upsertDashboardTemplate(template);
 
-  return NextResponse.json(saved, { status: 201 });
+    return NextResponse.json(saved, { status: 201 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to save dashboard template.";
+
+    return NextResponse.json({ message }, { status: 500 });
+  }
 }
