@@ -30,6 +30,12 @@ export type TabPane = {
   layout: LayoutItem[];
 };
 
+export type FormioSchema = {
+  display?: string;
+  components: Record<string, unknown>[];
+  [key: string]: unknown;
+};
+
 export type LayoutItem = {
   instanceId: string;
   paletteId: string;
@@ -44,6 +50,7 @@ export type LayoutItem = {
   backgroundImage: BinaryAsset | null;
   backgroundColor?: string;
   attachments: BinaryAsset[];
+  formSchema?: FormioSchema | null;
   tabCount?: number;
   activeTabId?: string;
   tabs?: TabPane[];
@@ -52,6 +59,7 @@ export type LayoutItem = {
 
 export type EditorDraft = {
   instanceId: string;
+  contentHeight: number;
   contentText: string;
   contentPadding?: number;
   imageBorderEnabled?: boolean;
@@ -71,6 +79,13 @@ export type DashboardTemplate = {
   updatedAt: string;
   layout: LayoutItem[];
 };
+
+export function createEmptyFormioSchema(): FormioSchema {
+  return {
+    display: "form",
+    components: [],
+  };
+}
 
 export const paletteItems: PaletteItem[] = [
   {

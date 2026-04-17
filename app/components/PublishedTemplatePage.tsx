@@ -3,7 +3,8 @@
 import { useState } from "react";
 
 import { ContentBlocks } from "./ContentBlocks";
-import { binaryToDataUrl, colClass, findPaletteItem, resolveContentPadding, resolveImageBorderEnabled, resolveImageBorderWidth, type DashboardTemplate, type LayoutItem } from "../utils/shared";
+import { FormioRenderedContent } from "./FormioRenderedContent";
+import { binaryToDataUrl, colClass, findPaletteItem, hasTextualContent, resolveContentPadding, resolveImageBorderEnabled, resolveImageBorderWidth, type DashboardTemplate, type LayoutItem } from "../utils/shared";
 
 function PublicBlock({
   layoutItem,
@@ -29,10 +30,11 @@ function PublicBlock({
   const contentPadding = resolveContentPadding(layoutItem.contentPadding);
   const imageBorderEnabled = resolveImageBorderEnabled(layoutItem.imageBorderEnabled);
   const imageBorderWidth = resolveImageBorderWidth(layoutItem.imageBorderWidth);
-  const hasTextContent = layoutItem.contentText ? Boolean(layoutItem.contentText.trim()) : false;
+  const hasTextContent = hasTextualContent(layoutItem.contentText);
   const activeTab =
     layoutItem.tabs?.find((tab) => tab.id === activeTabId) ?? layoutItem.tabs?.[0];
   const hasChildLayout = (layoutItem.childLayout?.length ?? 0) > 0;
+  const hasFormContent = (layoutItem.formSchema?.components?.length ?? 0) > 0;
 
   const resolveLink = (href: string) => {
     if (!href.startsWith("/")) {
@@ -84,7 +86,7 @@ function PublicBlock({
     );
   }
 
-  if (layoutItem.paletteId === "layer" && hasChildLayout) {
+  if (layoutItem.paletteId === "layer" && (hasChildLayout || hasFormContent)) {
     return (
       <div className={`${hasTextContent ? "overflow-y-auto" : "overflow-hidden"} rounded-[22px] border border-black/10 bg-white p-5`}>
         {hasTextContent ? (
@@ -100,6 +102,11 @@ function PublicBlock({
               imageBorderEnabled={imageBorderEnabled}
               imageBorderWidth={imageBorderWidth}
             />
+          </div>
+        ) : null}
+        {hasFormContent ? (
+          <div className="mb-4">
+            <FormioRenderedContent schema={layoutItem.formSchema} />
           </div>
         ) : null}
         <div className="grid grid-cols-12 gap-3">

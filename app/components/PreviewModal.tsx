@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { ContentBlocks } from "./ContentBlocks";
+import { FormioRenderedContent } from "./FormioRenderedContent";
 import { useI18n } from "../utils/i18n";
 import {
   binaryToDataUrl,
@@ -52,6 +53,7 @@ function PreviewBlock({
   const activeTab =
     layoutItem.tabs?.find((tab) => tab.id === activeTabId) ?? layoutItem.tabs?.[0];
   const hasChildLayout = (layoutItem.childLayout?.length ?? 0) > 0;
+  const hasFormContent = (layoutItem.formSchema?.components?.length ?? 0) > 0;
 
   if (layoutItem.paletteId === "tabs") {
     return (
@@ -96,7 +98,7 @@ function PreviewBlock({
     );
   }
 
-  if (layoutItem.paletteId === "layer" && hasChildLayout) {
+  if (layoutItem.paletteId === "layer" && (hasChildLayout || hasFormContent)) {
     return (
       <div
         className={`${hasTextContent ? "overflow-y-auto" : "overflow-hidden"} rounded-[18px] border border-black/10 bg-white p-4`}
@@ -114,6 +116,11 @@ function PreviewBlock({
               imageBorderEnabled={imageBorderEnabled}
               imageBorderWidth={imageBorderWidth}
             />
+          </div>
+        ) : null}
+        {hasFormContent ? (
+          <div className="mb-4">
+            <FormioRenderedContent schema={layoutItem.formSchema} />
           </div>
         ) : null}
         <div className="grid grid-cols-12 gap-3">

@@ -8,6 +8,10 @@
     "start": "next start"
   },
   "dependencies": {
+    "@formio/core": "^2.6.3",
+    "@formio/js": "^5.3.3",
+    "@formio/react": "^6.2.0",
+    "formiojs": "^4.21.7",
     "next": "16.2.3",
     "react": "19.2.4",
     "react-dom": "19.2.4"

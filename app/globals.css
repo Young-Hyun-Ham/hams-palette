@@ -25,3 +25,101 @@ body {
   color: var(--foreground);
   font-family: "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
 }
+
+.layer-formio-shell .form-group {
+  margin-bottom: 14px;
+}
+
+.layer-formio-shell label,
+.layer-formio-shell .control-label {
+  display: block;
+  margin-bottom: 8px;
+  color: #44403c;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.layer-formio-shell .form-control {
+  width: 100%;
+  border: 1px solid rgb(0 0 0 / 0.1);
+  border-radius: 1rem;
+  background: #fff;
+  min-height: 46px;
+  padding: 0.7rem 0.95rem;
+  box-shadow: none;
+}
+
+.layer-formio-shell .btn {
+  border-radius: 9999px;
+  border: 1px solid rgb(0 0 0 / 0.1);
+  min-height: 42px;
+  padding: 0.65rem 1rem;
+  font-size: 0.875rem;
+}
+
+.layer-formio-shell .btn.btn-primary {
+  background: #203b35;
+  border-color: #203b35;
+  color: #fff;
+}
+
+.layer-formio-shell .formio-component-submit {
+  margin-top: 10px;
+}
+
+.layer-formio-shell .choices {
+  margin-bottom: 0;
+}
+
+.layer-formio-shell .choices__inner {
+  border: 1px solid rgb(0 0 0 / 0.1);
+  border-radius: 1rem;
+  background: #fff;
+  min-height: 46px;
+  padding: 0.35rem 0.95rem;
+}
+
+.layer-formio-shell .choices__list--single {
+  padding: 0.35rem 0;
+}
+
+.layer-formio-shell .form-text,
+.layer-formio-shell .help-block {
+  margin-top: 6px;
+  color: #78716c;
+  font-size: 0.75rem;
+}
+
+.layer-formio-shell .has-error .form-control,
+.layer-formio-shell .has-error .choices__inner {
+  border-color: #dc2626;
+}
+
+.formio-runtime-shell .form-control {
+  width: 100%;
+  border: 1px solid rgb(0 0 0 / 0.1);
+  border-radius: 0.75rem;
+  background: #fff;
+  min-height: 42px;
+  padding: 0.65rem 0.85rem;
+}
+
+.formio-runtime-shell .btn {
+  border-radius: 9999px;
+  border: 1px solid rgb(0 0 0 / 0.1);
+  background: #fff;
+  min-height: 40px;
+  padding: 0.55rem 0.95rem;
+}
+
+.formio-runtime-shell .btn.btn-primary {
+  background: #203b35;
+  border-color: #203b35;
+  color: #fff;
+}
+
+.formio-builder-shell .formcomponents,
+.formio-builder-shell .builder-sidebar,
+.formio-builder-shell .formbuilder {
+  font-size: 0.875rem;
+}

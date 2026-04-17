@@ -28,7 +28,6 @@ type ContentEditorModalProps = {
   emojiOptions: string[];
   textOptions: string[];
   draftBackgroundUrl?: string;
-  previewHeight: number;
   canUndo: boolean;
   canRedo: boolean;
   onClose: () => void;
@@ -59,7 +58,6 @@ export function ContentEditorModal({
   emojiOptions,
   textOptions,
   draftBackgroundUrl,
-  previewHeight,
   canUndo,
   canRedo,
   onClose,
@@ -223,6 +221,18 @@ export function ContentEditorModal({
     });
   };
 
+  const commitContentHeight = (rawValue: string) => {
+    const value = Number(rawValue);
+    if (!Number.isFinite(value) || value < 0) {
+      return;
+    }
+
+    onDraftChange({
+      ...draft,
+      contentHeight: value,
+    });
+  };
+
   const removeBackgroundImage = () => {
     onDraftChange({
       ...draft,
@@ -309,6 +319,19 @@ export function ContentEditorModal({
                   >
                     <EmojiPickerIcon className="h-6 w-6" />
                   </button>
+                  <div className="self-center text-stone-400">|</div>
+                  <label className="flex items-center gap-2 rounded-full border border-black/10 bg-[#faf7f1] px-3 py-1 text-xs text-stone-700">
+                    <span>H</span>
+                    <input
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={draft.contentHeight}
+                      onChange={(event) => commitContentHeight(event.target.value)}
+                      className="w-7 appearance-none border-none bg-transparent text-right outline-none [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      aria-label={t("content height")}
+                    />
+                  </label>
 
                   {isPickerOpen ? (
                     <div className="absolute left-0 top-12 z-10 w-[320px] rounded-[20px] border border-black/10 bg-white p-3 shadow-[0_18px_50px_rgba(0,0,0,0.14)]">
@@ -395,7 +418,7 @@ export function ContentEditorModal({
                           commitImageBorderWidth(borderWidthValue);
                         }
                       }}
-                      className="w-16 appearance-none border-none bg-transparent text-right outline-none disabled:cursor-not-allowed disabled:opacity-40 [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      className="w-10 appearance-none border-none bg-transparent text-right outline-none disabled:cursor-not-allowed disabled:opacity-40 [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                       placeholder="px"
                       aria-label={t("border width")}
                     />
@@ -427,7 +450,7 @@ export function ContentEditorModal({
                           commitFontSize(fontSizeValue);
                         }
                       }}
-                      className="w-16 appearance-none border-none bg-transparent text-right outline-none [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      className="w-7 appearance-none border-none bg-transparent text-right outline-none [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                       placeholder="px"
                       aria-label={t("font size")}
                     />
@@ -459,7 +482,7 @@ export function ContentEditorModal({
                           commitContentPadding(spacingValue);
                         }
                       }}
-                      className="w-16 appearance-none border-none bg-transparent text-right outline-none [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      className="w-7 appearance-none border-none bg-transparent text-right outline-none [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                       placeholder="px"
                       aria-label={t("content spacing")}
                     />
@@ -629,7 +652,7 @@ export function ContentEditorModal({
                   className={`${hasTextContent ? "overflow-y-auto" : "overflow-hidden"} rounded-[18px] bg-black/6 font-mono text-sm leading-6 backdrop-blur-[1px]`}
                   style={{
                     width: "100%",
-                    height: `${previewHeight}px`,
+                    height: `${draft.contentHeight}px`,
                     padding: `${draft.contentPadding ?? 12}px`,
                     backgroundColor: draft.backgroundColor,
                     backgroundImage: draftBackgroundUrl

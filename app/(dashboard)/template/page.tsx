@@ -6,6 +6,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { ContentEditorModal } from "@/app/components/ContentEditorModal";
 import { ContentBlocks } from "@/app/components/ContentBlocks";
+import { FormioBuilderModal } from "@/app/components/FormioBuilderModal";
+import { FormioRenderedContent } from "@/app/components/FormioRenderedContent";
 import { PreviewModal } from "@/app/components/PreviewModal";
 import { useI18n } from "@/app/utils/i18n";
 import { slugifyTemplateKey } from "@/app/utils/template-key";
@@ -15,6 +17,7 @@ import {
   findPaletteItem,
   hasTextualContent,
   paletteItems,
+  createEmptyFormioSchema,
   resolveContentPadding,
   resolveImageBorderEnabled,
   resolveImageBorderWidth,
@@ -46,6 +49,7 @@ function cloneAssets(assets: BinaryAsset[]) {
 function cloneLayoutItems(items: LayoutItem[]): LayoutItem[] {
   return items.map((item) => ({
     ...item,
+    formSchema: item.formSchema ? structuredClone(item.formSchema) : null,
     backgroundImage: cloneAsset(item.backgroundImage),
     attachments: cloneAssets(item.attachments),
     tabs: item.tabs?.map((tab) => ({
@@ -125,6 +129,7 @@ function makeLayoutItem(paletteId: string, index: number): LayoutItem {
     backgroundImage: null,
     backgroundColor: undefined,
     attachments: [],
+    formSchema: paletteId === "layer" ? createEmptyFormioSchema() : null,
     tabCount: item?.supportsTabs ? defaultTabCount : undefined,
     activeTabId: item?.supportsTabs ? `${instanceId}-tab-1` : undefined,
     tabs: item?.supportsTabs ? createEmptyTabs(instanceId, defaultTabCount) : undefined,
@@ -196,6 +201,7 @@ function BlockPreview({
   const activeTab =
     layoutItem.tabs?.find((tab) => tab.id === layoutItem.activeTabId) ?? layoutItem.tabs?.[0];
   const hasChildLayout = (layoutItem.childLayout?.length ?? 0) > 0;
+  const hasFormContent = (layoutItem.formSchema?.components?.length ?? 0) > 0;
 
   if (layoutItem.paletteId === "tabs") {
     return (
@@ -247,7 +253,7 @@ function BlockPreview({
     );
   }
 
-  if (layoutItem.paletteId === "layer" && hasChildLayout) {
+  if (layoutItem.paletteId === "layer" && (hasChildLayout || hasFormContent)) {
     return (
       <div
         className={`overflow-y-auto rounded-[18px] border border-black/10 bg-white p-4 ${compact ? "" : "mt-5"}`}
@@ -265,6 +271,12 @@ function BlockPreview({
               imageBorderEnabled={imageBorderEnabled}
               imageBorderWidth={imageBorderWidth}
             />
+          </div>
+        ) : null}
+
+        {hasFormContent ? (
+          <div className={hasTextContent ? "mb-4" : "mb-4"}>
+            <FormioRenderedContent schema={layoutItem.formSchema} />
           </div>
         ) : null}
 
@@ -349,7 +361,7 @@ function TemplateBuilderPage() {
   const [selectedId, setSelectedId] = useState<string>(() => createInitialLayout()[0].instanceId);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [editorDraft, setEditorDraft] = useState<EditorDraft | null>(null);
-  const [editorPreviewHeight, setEditorPreviewHeight] = useState(120);
+  const [isFormioBuilderOpen, setIsFormioBuilderOpen] = useState(false);
   const [isLoadingTemplate, setIsLoadingTemplate] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
@@ -429,6 +441,7 @@ function TemplateBuilderPage() {
     () => binaryToDataUrl(editorDraft?.backgroundImage ?? null),
     [editorDraft],
   );
+
   const createLayoutFromPalette = (paletteId: string): LayoutItem | null => {
     const item = findPaletteItem(paletteId);
     if (!item) {
@@ -452,6 +465,7 @@ function TemplateBuilderPage() {
       backgroundImage: null,
       backgroundColor: undefined,
       attachments: [],
+      formSchema: paletteId === "layer" ? createEmptyFormioSchema() : null,
       tabCount: item.supportsTabs ? defaultTabCount : undefined,
       activeTabId: item.supportsTabs ? `${instanceId}-tab-1` : undefined,
       tabs: item.supportsTabs ? createEmptyTabs(instanceId, defaultTabCount) : undefined,
@@ -634,6 +648,18 @@ function TemplateBuilderPage() {
     }));
   };
 
+  const saveSelectedLayerFormSchema = (formSchema: LayoutItem["formSchema"]) => {
+    if (!selectedLayoutItem || selectedLayoutItem.paletteId !== "layer") {
+      return;
+    }
+
+    updateLayoutItem(selectedLayoutItem.instanceId, (item) => ({
+      ...item,
+      formSchema: formSchema ? structuredClone(formSchema) : createEmptyFormioSchema(),
+    }));
+    setIsFormioBuilderOpen(false);
+  };
+
   const openEditorForItem = (instanceId: string) => {
     const target = findLayoutItemById(layout, instanceId);
     if (!target || target.paletteId === "tabs") {
@@ -642,6 +668,7 @@ function TemplateBuilderPage() {
 
     setEditorDraft({
       instanceId: target.instanceId,
+      contentHeight: target.contentHeight,
       contentText: target.contentText,
       contentPadding: target.contentPadding,
       imageBorderEnabled: target.imageBorderEnabled,
@@ -650,7 +677,6 @@ function TemplateBuilderPage() {
       backgroundColor: target.backgroundColor,
       attachments: cloneAssets(target.attachments),
     });
-    setEditorPreviewHeight(target.contentHeight);
     setEditorHistory({ past: [], future: [] });
   };
 
@@ -709,6 +735,7 @@ function TemplateBuilderPage() {
 
     updateLayoutItem(editorDraft.instanceId, (item) => ({
       ...item,
+      contentHeight: editorDraft.contentHeight,
       contentText: editorDraft.contentText,
       contentPadding: editorDraft.contentPadding,
       imageBorderEnabled: editorDraft.imageBorderEnabled,
@@ -1035,13 +1062,30 @@ function TemplateBuilderPage() {
               ) : selectedLayoutItem?.paletteId === "layer" ? (
                 <div className="space-y-4 rounded-[22px] border border-black/10 bg-[#faf7f1] p-4">
                   <div className="rounded-[18px] border border-black/10 bg-white p-4">
-                    <p className="text-sm font-semibold text-stone-800">{t("layer content palette")}</p>
+                    <p className="text-sm font-semibold text-stone-800">{t("layer child palettes")}</p>
                     <div className="mt-3 flex flex-wrap gap-2">
                       {paletteItems.map((item) => (
                         <button key={item.id} type="button" onClick={() => appendPaletteToLayer(item.id)} className="rounded-full border border-black/10 bg-[#faf7f1] px-3 py-2 text-xs">
                           {t("add")} {t(item.name)}
                         </button>
                       ))}
+                    </div>
+                  </div>
+
+                  <div className="rounded-[18px] border border-black/10 bg-white p-4">
+                    <p className="text-sm font-semibold text-stone-800">Form.io</p>
+                    <p className="mt-1 text-xs text-stone-500">{t("add formio components to decorate the selected layer palette.")}</p>
+                    <div className="mt-3 flex items-center justify-between gap-3">
+                      <span className="text-xs text-stone-500">
+                        {(selectedLayoutItem.formSchema?.components?.length ?? 0)} {t("components")}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setIsFormioBuilderOpen(true)}
+                        className="rounded-full border border-black/10 bg-[#faf7f1] px-3 py-2 text-xs"
+                      >
+                        {t("open formio builder")}
+                      </button>
                     </div>
                   </div>
 
@@ -1095,7 +1139,6 @@ function TemplateBuilderPage() {
           emojiOptions={emojiOptions}
           textOptions={textOptions}
           draftBackgroundUrl={draftBackgroundUrl}
-          previewHeight={editorPreviewHeight}
           canUndo={editorHistory.past.length > 0}
           canRedo={editorHistory.future.length > 0}
           onClose={closeEditor}
@@ -1110,6 +1153,13 @@ function TemplateBuilderPage() {
           onRemoveAttachment={removeAttachment}
           onInsertAttachmentImage={insertAttachmentImage}
           onInsertAttachmentTag={insertAttachmentTag}
+        />
+      ) : null}
+      {isFormioBuilderOpen && selectedLayoutItem?.paletteId === "layer" ? (
+        <FormioBuilderModal
+          initialSchema={selectedLayoutItem.formSchema}
+          onClose={() => setIsFormioBuilderOpen(false)}
+          onSave={saveSelectedLayerFormSchema}
         />
       ) : null}
     </main>
