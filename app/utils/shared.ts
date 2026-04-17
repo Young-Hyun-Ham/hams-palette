@@ -6,6 +6,8 @@ export type BinaryAsset = {
   type: string;
   size: number;
   bytes: number[];
+  imageBorderEnabled?: boolean;
+  imageBorderWidth?: number;
 };
 
 export type PaletteItem = {
@@ -34,6 +36,9 @@ export type LayoutItem = {
   cols: number;
   frameHeight?: number;
   contentHeight: number;
+  contentPadding?: number;
+  imageBorderEnabled?: boolean;
+  imageBorderWidth?: number;
   contentEnabled: boolean;
   contentText: string;
   backgroundImage: BinaryAsset | null;
@@ -42,11 +47,15 @@ export type LayoutItem = {
   tabCount?: number;
   activeTabId?: string;
   tabs?: TabPane[];
+  childLayout?: LayoutItem[];
 };
 
 export type EditorDraft = {
   instanceId: string;
   contentText: string;
+  contentPadding?: number;
+  imageBorderEnabled?: boolean;
+  imageBorderWidth?: number;
   backgroundImage: BinaryAsset | null;
   backgroundColor?: string;
   attachments: BinaryAsset[];
@@ -68,11 +77,11 @@ export const paletteItems: PaletteItem[] = [
     id: "layer",
     name: "Layer Palette",
     category: "layer",
-    tone: "Flexible Content Area",
+    tone: "Section Container",
     sizeLabel: "12 Col",
     defaultCols: 12,
     defaultContentHeight: 160,
-    cardClassName: "bg-[#fff7ee] text-stone-900",
+    cardClassName: "bg-white text-stone-900",
     defaultContent: "## Layer Palette",
   },
   {
@@ -83,7 +92,7 @@ export const paletteItems: PaletteItem[] = [
     sizeLabel: "12 Col",
     defaultCols: 12,
     defaultContentHeight: 240,
-    cardClassName: "bg-[#f0e4d5] text-stone-900",
+    cardClassName: "bg-white text-stone-900",
     defaultContent: "## Tab Palette",
     supportsTabs: true,
     defaultTabCount: 3,
@@ -96,7 +105,7 @@ export const paletteItems: PaletteItem[] = [
     sizeLabel: "12 Col",
     defaultCols: 12,
     defaultContentHeight: 90,
-    cardClassName: "bg-[#e7efe6] text-stone-900",
+    cardClassName: "bg-white text-stone-900",
     defaultContent: "## Menu Palette",
   },
 ];
@@ -146,4 +155,59 @@ export function binaryToDataUrl(asset: BinaryAsset | null) {
   }
 
   return `data:${asset.type};base64,${btoa(binary)}`;
+}
+
+export function resolveContentPadding(contentPadding?: number) {
+  return typeof contentPadding === "number" ? contentPadding : 12;
+}
+
+export function resolveImageBorderEnabled(imageBorderEnabled?: boolean) {
+  return imageBorderEnabled ?? false;
+}
+
+export function resolveImageBorderWidth(imageBorderWidth?: number) {
+  return typeof imageBorderWidth === "number" ? imageBorderWidth : 1;
+}
+
+const CANVAS_WIDTH = 1440;
+const CANVAS_GRID_COLUMNS = 12;
+const CANVAS_GRID_GAP = 12;
+const CANVAS_CARD_HORIZONTAL_PADDING = 40;
+const CANVAS_BLOCK_CHROME_HEIGHT = 132;
+
+export function resolveCanvasBlockHeight(contentHeight: number) {
+  return CANVAS_BLOCK_CHROME_HEIGHT + contentHeight;
+}
+
+export function resolveCanvasBlockWidth(cols: number) {
+  const normalizedCols = Math.min(CANVAS_GRID_COLUMNS, Math.max(1, cols));
+  const columnWidth =
+    (CANVAS_WIDTH - CANVAS_GRID_GAP * (CANVAS_GRID_COLUMNS - 1)) / CANVAS_GRID_COLUMNS;
+
+  return columnWidth * normalizedCols + CANVAS_GRID_GAP * (normalizedCols - 1);
+}
+
+export function resolveCanvasContentWidth(cols: number) {
+  return Math.max(0, resolveCanvasBlockWidth(cols) - CANVAS_CARD_HORIZONTAL_PADDING);
+}
+
+const IMAGE_TAG_PATTERN = /^!\[(.*?)\]\((.*?)\)$/;
+const ALIGN_TAG_PATTERN = /^\[align:(left|center|right)\](.*)\[\/align\]$/;
+
+export function hasTextualContent(contentText: string) {
+  return contentText.split("\n").some((rawLine) => {
+    const trimmedLine = rawLine.trim();
+    if (!trimmedLine) {
+      return false;
+    }
+
+    const alignMatch = trimmedLine.match(ALIGN_TAG_PATTERN);
+    const line = alignMatch ? alignMatch[2].trim() : trimmedLine;
+
+    if (!line) {
+      return false;
+    }
+
+    return !IMAGE_TAG_PATTERN.test(line);
+  });
 }

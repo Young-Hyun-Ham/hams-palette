@@ -24,10 +24,11 @@ type StoredBinaryAsset = Omit<BinaryAsset, "bytes"> & {
   encryptedBytes: string;
 };
 
-type StoredLayoutItem = Omit<LayoutItem, "backgroundImage" | "attachments" | "tabs"> & {
+type StoredLayoutItem = Omit<LayoutItem, "backgroundImage" | "attachments" | "tabs" | "childLayout"> & {
   backgroundImage: StoredBinaryAsset | null;
   attachments: StoredBinaryAsset[];
   tabs?: StoredTabPane[];
+  childLayout?: StoredLayoutItem[];
 };
 
 type StoredTabPane = Omit<TabPane, "layout"> & {
@@ -122,6 +123,7 @@ function serializeLayoutItem(item: LayoutItem): StoredLayoutItem {
     backgroundImage: serializeAsset(item.backgroundImage),
     attachments: item.attachments.map((asset) => serializeAsset(asset)!),
     tabs: item.tabs?.map(serializeTabPane),
+    childLayout: item.childLayout?.map(serializeLayoutItem),
   };
 }
 
@@ -133,6 +135,7 @@ function deserializeLayoutItem(item: StoredLayoutItem): LayoutItem {
       .map((asset) => deserializeAsset(asset))
       .filter((asset): asset is BinaryAsset => Boolean(asset)),
     tabs: item.tabs?.map(deserializeTabPane),
+    childLayout: item.childLayout?.map(deserializeLayoutItem),
   };
 }
 

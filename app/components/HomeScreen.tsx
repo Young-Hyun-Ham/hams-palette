@@ -17,11 +17,14 @@ function formatDate(value: string) {
 
 export function HomeScreen({ templates }: { templates: DashboardTemplate[] }) {
   const { t } = useI18n();
+  const sortedTemplates = [...templates].sort(
+    (left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime(),
+  );
 
   return (
-    <main className="min-h-screen bg-[linear-gradient(180deg,#f7efe4_0%,#efe2d1_100%)] px-6 py-10">
+    <main className="min-h-screen bg-white px-6 py-10">
       <div className="mx-auto max-w-6xl">
-        <div className="flex flex-col gap-4 rounded-[32px] border border-black/10 bg-[#fffaf4]/90 p-8 shadow-[0_24px_90px_rgba(57,43,24,0.12)] lg:flex-row lg:items-end lg:justify-between">
+        <div className="flex flex-col gap-4 rounded-[32px] border border-black/10 bg-white p-8 shadow-[0_24px_90px_rgba(57,43,24,0.08)] lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-sm uppercase tracking-[0.28em] text-[#b86537]">HAMS Palette</p>
             <h1 className="mt-4 text-4xl font-semibold leading-tight text-stone-900">
@@ -32,21 +35,28 @@ export function HomeScreen({ templates }: { templates: DashboardTemplate[] }) {
             </p>
           </div>
 
-          <Link
-            href="/template"
-            className="inline-flex items-center justify-center rounded-full bg-[#1f3b35] px-5 py-3 text-sm font-medium text-white"
-          >
-            {t("create template")}
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href="/templates"
+              className="inline-flex items-center justify-center rounded-full border border-black/10 bg-[#faf7f1] px-5 py-3 text-sm font-medium text-stone-800"
+            >
+              Saved List
+            </Link>
+            <Link
+              href="/template"
+              className="inline-flex items-center justify-center rounded-full bg-[#1f3b35] px-5 py-3 text-sm font-medium text-white"
+            >
+              {t("create template")}
+            </Link>
+          </div>
         </div>
 
         <section className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {templates.length > 0 ? (
-            templates.map((template) => (
-              <Link
+          {sortedTemplates.length > 0 ? (
+            sortedTemplates.map((template) => (
+              <article
                 key={template.id}
-                href={`/template?id=${template.id}`}
-                className="rounded-[28px] border border-black/10 bg-[#fffdf9] p-6 shadow-[0_16px_40px_rgba(57,43,24,0.08)] transition hover:-translate-y-0.5 hover:shadow-[0_22px_50px_rgba(57,43,24,0.12)]"
+                className="rounded-[28px] border border-black/10 bg-white p-6 shadow-[0_16px_40px_rgba(57,43,24,0.06)]"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div>
@@ -74,9 +84,23 @@ export function HomeScreen({ templates }: { templates: DashboardTemplate[] }) {
                   <span>
                     {t("updated")} {formatDate(template.updatedAt)}
                   </span>
-                  <span>{t("open")}</span>
                 </div>
-              </Link>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Link
+                    href={`/template?id=${template.id}`}
+                    className="inline-flex items-center justify-center rounded-full border border-black/10 bg-[#faf7f1] px-4 py-2 text-sm text-stone-800"
+                  >
+                    Edit Template
+                  </Link>
+                  <Link
+                    href={`/${template.userId}/${template.templateKey}`}
+                    className="inline-flex items-center justify-center rounded-full bg-[#1f3b35] px-4 py-2 text-sm text-white"
+                  >
+                    Open Page
+                  </Link>
+                </div>
+              </article>
             ))
           ) : (
             <div className="md:col-span-2 xl:col-span-3 rounded-[28px] border border-dashed border-black/15 bg-[#fffaf3] p-10 text-center text-stone-600">

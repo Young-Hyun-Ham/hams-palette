@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import { ContentBlocks } from "./ContentBlocks";
-import { binaryToDataUrl, colClass, findPaletteItem, type DashboardTemplate, type LayoutItem } from "../utils/shared";
+import { binaryToDataUrl, colClass, findPaletteItem, resolveContentPadding, resolveImageBorderEnabled, resolveImageBorderWidth, type DashboardTemplate, type LayoutItem } from "../utils/shared";
 
 function PublicBlock({
   layoutItem,
@@ -26,8 +26,13 @@ function PublicBlock({
   }
 
   const backgroundUrl = binaryToDataUrl(layoutItem.backgroundImage);
+  const contentPadding = resolveContentPadding(layoutItem.contentPadding);
+  const imageBorderEnabled = resolveImageBorderEnabled(layoutItem.imageBorderEnabled);
+  const imageBorderWidth = resolveImageBorderWidth(layoutItem.imageBorderWidth);
+  const hasTextContent = layoutItem.contentText ? Boolean(layoutItem.contentText.trim()) : false;
   const activeTab =
     layoutItem.tabs?.find((tab) => tab.id === activeTabId) ?? layoutItem.tabs?.[0];
+  const hasChildLayout = (layoutItem.childLayout?.length ?? 0) > 0;
 
   const resolveLink = (href: string) => {
     if (!href.startsWith("/")) {
@@ -79,11 +84,41 @@ function PublicBlock({
     );
   }
 
+  if (layoutItem.paletteId === "layer" && hasChildLayout) {
+    return (
+      <div className={`${hasTextContent ? "overflow-y-auto" : "overflow-hidden"} rounded-[22px] border border-black/10 bg-white p-5`}>
+        {hasTextContent ? (
+          <div
+            className="mb-4 rounded-[18px] border border-black/8 bg-white font-mono text-sm leading-7"
+            style={{ padding: `${contentPadding}px` }}
+          >
+            <ContentBlocks
+              contentText={layoutItem.contentText}
+              attachments={layoutItem.attachments}
+              lineKeyPrefix={`${layoutItem.instanceId}-published-layer-content`}
+              linkResolver={resolveLink}
+              imageBorderEnabled={imageBorderEnabled}
+              imageBorderWidth={imageBorderWidth}
+            />
+          </div>
+        ) : null}
+        <div className="grid grid-cols-12 gap-3">
+          {(layoutItem.childLayout ?? []).map((child) => (
+            <div key={child.instanceId} className={colClass(child.cols)}>
+              <PublicBlock layoutItem={child} userId={userId} />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
-      className={`overflow-y-auto rounded-[22px] p-5 font-mono text-sm leading-7 ${paletteItem.cardClassName}`}
+      className={`overflow-y-auto rounded-[22px] font-mono text-sm leading-7 ${paletteItem.cardClassName}`}
       style={{
         minHeight: `${layoutItem.contentHeight}px`,
+        padding: `${contentPadding}px`,
         backgroundColor: layoutItem.backgroundColor,
         backgroundImage: backgroundUrl
           ? `linear-gradient(rgba(20,20,20,0.14), rgba(20,20,20,0.14)), url(${backgroundUrl})`
@@ -97,6 +132,8 @@ function PublicBlock({
         attachments={layoutItem.attachments}
         lineKeyPrefix={`${layoutItem.instanceId}-published`}
         linkResolver={resolveLink}
+        imageBorderEnabled={imageBorderEnabled}
+        imageBorderWidth={imageBorderWidth}
       />
     </div>
   );
@@ -104,9 +141,9 @@ function PublicBlock({
 
 export function PublishedTemplatePage({ template }: { template: DashboardTemplate }) {
   return (
-    <main className="min-h-screen bg-[linear-gradient(180deg,#f7efe4_0%,#efe2d1_100%)] px-4 py-6 text-stone-900 lg:px-6">
+    <main className="min-h-screen bg-white px-4 py-6 text-stone-900 lg:px-6">
       <div className="mx-auto max-w-[1880px]">
-        <div className="grid grid-cols-12 gap-3 rounded-[28px] bg-[linear-gradient(180deg,#fffdf9_0%,#f7efe5_100%)] p-3">
+        <div className="grid grid-cols-12 gap-3 rounded-[28px] bg-white p-3">
           {template.layout.map((layoutItem) => (
             <div key={layoutItem.instanceId} className={colClass(layoutItem.cols)}>
               <PublicBlock layoutItem={layoutItem} userId={template.userId} />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 
 import { ContentBlocks } from "./ContentBlocks";
 import {
@@ -17,7 +17,11 @@ import {
   UndoIcon,
 } from "../utils/icons";
 import { useI18n } from "../utils/i18n";
-import type { BinaryAsset, EditorDraft } from "../utils/shared";
+import {
+  hasTextualContent,
+  type BinaryAsset,
+  type EditorDraft,
+} from "../utils/shared";
 
 type ContentEditorModalProps = {
   draft: EditorDraft;
@@ -47,6 +51,8 @@ type SelectionRange = {
 };
 
 const sizeOptions = [14, 16, 18, 20, 24, 28, 32];
+const spacingOptions = [0, 4, 8, 12, 16, 20, 24, 32];
+const borderWidthOptions = [1, 2, 3, 4, 6, 8];
 
 export function ContentEditorModal({
   draft,
@@ -76,6 +82,29 @@ export function ContentEditorModal({
   const [isBackgroundPickerOpen, setIsBackgroundPickerOpen] = useState(false);
   const [pickerTab, setPickerTab] = useState<"emoji" | "text">("emoji");
   const [fontSizeValue, setFontSizeValue] = useState("");
+  const [spacingValue, setSpacingValue] = useState(String(draft.contentPadding ?? 5));
+  const [selectedImageAssetId, setSelectedImageAssetId] = useState<string | null>(null);
+  const [borderWidthValue, setBorderWidthValue] = useState("1");
+  const hasTextContent = hasTextualContent(draft.contentText);
+  const imageAttachments = draft.attachments.filter((asset) => asset.type.startsWith("image/"));
+  const selectedImageAsset =
+    imageAttachments.find((asset) => asset.id === selectedImageAssetId) ?? imageAttachments[0] ?? null;
+
+  useEffect(() => {
+    setSpacingValue(String(draft.contentPadding ?? 5));
+  }, [draft.contentPadding]);
+
+  useEffect(() => {
+    if (!imageAttachments.length) {
+      setSelectedImageAssetId(null);
+      setBorderWidthValue("1");
+      return;
+    }
+
+    const nextSelectedAsset = imageAttachments.find((asset) => asset.id === selectedImageAssetId) ?? imageAttachments[0];
+    setSelectedImageAssetId(nextSelectedAsset.id);
+    setBorderWidthValue(String(nextSelectedAsset.imageBorderWidth ?? 1));
+  }, [imageAttachments, selectedImageAssetId]);
 
   const focusTextarea = (range?: SelectionRange) => {
     requestAnimationFrame(() => {
@@ -182,6 +211,58 @@ export function ContentEditorModal({
     applyFontSize(value);
   };
 
+  const commitContentPadding = (rawValue: string) => {
+    const value = Number(rawValue);
+    if (!Number.isFinite(value) || value < 0) {
+      return;
+    }
+
+    onDraftChange({
+      ...draft,
+      contentPadding: value,
+    });
+  };
+
+  const removeBackgroundImage = () => {
+    onDraftChange({
+      ...draft,
+      backgroundImage: null,
+    });
+  };
+
+  const toggleImageBorder = () => {
+    if (!selectedImageAsset) {
+      return;
+    }
+
+    onDraftChange({
+      ...draft,
+      attachments: draft.attachments.map((asset) =>
+        asset.id === selectedImageAsset.id
+          ? { ...asset, imageBorderEnabled: !(asset.imageBorderEnabled ?? false) }
+          : asset,
+      ),
+    });
+  };
+
+  const commitImageBorderWidth = (rawValue: string) => {
+    if (!selectedImageAsset) {
+      return;
+    }
+
+    const value = Number(rawValue);
+    if (!Number.isFinite(value) || value <= 0) {
+      return;
+    }
+
+    onDraftChange({
+      ...draft,
+      attachments: draft.attachments.map((asset) =>
+        asset.id === selectedImageAsset.id ? { ...asset, imageBorderWidth: value } : asset,
+      ),
+    });
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
       <div className="flex max-h-[94vh] w-full max-w-[1120px] flex-col overflow-hidden rounded-[30px] bg-[#fcf7f1] shadow-[0_30px_90px_rgba(0,0,0,0.35)]">
@@ -207,104 +288,188 @@ export function ContentEditorModal({
                 <div />
               </div>
 
-              <div className="relative mt-4 flex flex-wrap gap-2">
-                <button type="button" aria-label={t("align left")} onClick={() => applyAlignment("left")} className="rounded-full border border-black/10 bg-[#faf7f1] p-2 text-xs"><AlignLeftIcon className="h-4 w-4" /></button>
-                <button type="button" aria-label={t("align center")} onClick={() => applyAlignment("center")} className="rounded-full border border-black/10 bg-[#faf7f1] p-2 text-xs"><AlignCenterIcon className="h-4 w-4" /></button>
-                <button type="button" aria-label={t("align right")} onClick={() => applyAlignment("right")} className="rounded-full border border-black/10 bg-[#faf7f1] p-2 text-xs"><AlignRightIcon className="h-4 w-4" /></button>
-                <button type="button" aria-label={t("undo")} onClick={onUndo} disabled={!canUndo} className="rounded-full border border-black/10 bg-[#faf7f1] p-2 text-xs disabled:cursor-not-allowed disabled:opacity-40"><UndoIcon className="h-4 w-4" /></button>
-                <button type="button" aria-label={t("redo")} onClick={onRedo} disabled={!canRedo} className="rounded-full border border-black/10 bg-[#faf7f1] p-2 text-xs disabled:cursor-not-allowed disabled:opacity-40"><RedoIcon className="h-4 w-4" /></button>
-                <button type="button" aria-label={t("bold")} onClick={() => wrapSelectedText("**")} className="rounded-full border border-black/10 bg-[#faf7f1] p-2 text-xs font-semibold"><BoldIcon className="h-4 w-4" /></button>
-                <button type="button" aria-label={t("italic")} onClick={() => wrapSelectedText("*")} className="rounded-full border border-black/10 bg-[#faf7f1] p-2 text-xs italic"><ItalicIcon className="h-4 w-4" /></button>
-                <button type="button" aria-label={t("strike")} onClick={() => wrapSelectedText("~~")} className="rounded-full border border-black/10 bg-[#faf7f1] p-2 text-xs line-through"><StrikeIcon className="h-4 w-4" /></button>
-                <button
-                  type="button"
-                  onClick={() => setIsPickerOpen((current) => !current)}
-                  className="flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-[#faf7f1] text-stone-700"
-                  aria-label={t("open emoji and text picker")}
-                >
-                  <EmojiPickerIcon className="h-6 w-6" />
-                </button>
-                <label className="flex items-center gap-2 rounded-full border border-black/10 bg-[#faf7f1] px-3 py-1 text-xs text-stone-700">
-                  <span>{t("size")}</span>
-                  <input
-                    type="number"
-                    min={1}
-                    step={1}
-                    list="font-size-options"
-                    value={fontSizeValue}
-                    onChange={(event) => {
-                      const nextValue = event.target.value;
-                      setFontSizeValue(nextValue);
+              <div className="mt-4 space-y-2">
+                <div className="relative flex flex-wrap gap-2">
+                  <button type="button" aria-label={t("align left")} onClick={() => applyAlignment("left")} className="rounded-full border border-black/10 bg-[#faf7f1] p-2 text-xs"><AlignLeftIcon className="h-4 w-4" /></button>
+                  <button type="button" aria-label={t("align center")} onClick={() => applyAlignment("center")} className="rounded-full border border-black/10 bg-[#faf7f1] p-2 text-xs"><AlignCenterIcon className="h-4 w-4" /></button>
+                  <button type="button" aria-label={t("align right")} onClick={() => applyAlignment("right")} className="rounded-full border border-black/10 bg-[#faf7f1] p-2 text-xs"><AlignRightIcon className="h-4 w-4" /></button>
+                  <div className="self-center text-stone-400">|</div>
+                  <button type="button" aria-label={t("undo")} onClick={onUndo} disabled={!canUndo} className="rounded-full border border-black/10 bg-[#faf7f1] p-2 text-xs disabled:cursor-not-allowed disabled:opacity-40"><UndoIcon className="h-4 w-4" /></button>
+                  <button type="button" aria-label={t("redo")} onClick={onRedo} disabled={!canRedo} className="rounded-full border border-black/10 bg-[#faf7f1] p-2 text-xs disabled:cursor-not-allowed disabled:opacity-40"><RedoIcon className="h-4 w-4" /></button>
+                  <div className="self-center text-stone-400">|</div>
+                  <button type="button" aria-label={t("bold")} onClick={() => wrapSelectedText("**")} className="rounded-full border border-black/10 bg-[#faf7f1] p-2 text-xs font-semibold"><BoldIcon className="h-4 w-4" /></button>
+                  <button type="button" aria-label={t("italic")} onClick={() => wrapSelectedText("*")} className="rounded-full border border-black/10 bg-[#faf7f1] p-2 text-xs italic"><ItalicIcon className="h-4 w-4" /></button>
+                  <button type="button" aria-label={t("strike")} onClick={() => wrapSelectedText("~~")} className="rounded-full border border-black/10 bg-[#faf7f1] p-2 text-xs line-through"><StrikeIcon className="h-4 w-4" /></button>
+                  <div className="self-center text-stone-400">|</div>
+                  <button
+                    type="button"
+                    onClick={() => setIsPickerOpen((current) => !current)}
+                    className="flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-[#faf7f1] text-stone-700"
+                    aria-label={t("open emoji and text picker")}
+                  >
+                    <EmojiPickerIcon className="h-6 w-6" />
+                  </button>
 
-                      if (sizeOptions.includes(Number(nextValue))) {
-                        commitFontSize(nextValue);
-                      }
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        commitFontSize(fontSizeValue);
-                      }
-                    }}
-                    className="w-16 appearance-none border-none bg-transparent text-right outline-none [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                    placeholder="px"
-                    aria-label={t("font size")}
-                  />
-                  <datalist id="font-size-options">
-                    {sizeOptions.map((fontSize) => (
-                      <option key={fontSize} value={fontSize} />
-                    ))}
-                  </datalist>
-                </label>
+                  {isPickerOpen ? (
+                    <div className="absolute left-0 top-12 z-10 w-[320px] rounded-[20px] border border-black/10 bg-white p-3 shadow-[0_18px_50px_rgba(0,0,0,0.14)]">
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setPickerTab("emoji")}
+                          className={`rounded-full px-3 py-2 text-xs ${
+                            pickerTab === "emoji"
+                              ? "bg-[#203b35] text-white"
+                              : "border border-black/10 bg-[#faf7f1] text-stone-700"
+                          }`}
+                        >
+                          {t("emoji")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPickerTab("text")}
+                          className={`rounded-full px-3 py-2 text-xs ${
+                            pickerTab === "text"
+                              ? "bg-[#203b35] text-white"
+                              : "border border-black/10 bg-[#faf7f1] text-stone-700"
+                          }`}
+                        >
+                          {t("text")}
+                        </button>
+                      </div>
 
-                {isPickerOpen ? (
-                  <div className="absolute left-0 top-12 z-10 w-[320px] rounded-[20px] border border-black/10 bg-white p-3 shadow-[0_18px_50px_rgba(0,0,0,0.14)]">
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setPickerTab("emoji")}
-                        className={`rounded-full px-3 py-2 text-xs ${
-                          pickerTab === "emoji"
-                            ? "bg-[#203b35] text-white"
-                            : "border border-black/10 bg-[#faf7f1] text-stone-700"
-                        }`}
-                      >
-                        {t("emoji")}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPickerTab("text")}
-                        className={`rounded-full px-3 py-2 text-xs ${
-                          pickerTab === "text"
-                            ? "bg-[#203b35] text-white"
-                            : "border border-black/10 bg-[#faf7f1] text-stone-700"
-                        }`}
-                      >
-                        {t("text")}
-                      </button>
-                    </div>
-
-                    <div className="mt-3 max-h-[220px] overflow-y-auto rounded-[16px] bg-[#fcf7f1] p-2">
-                      <div className="flex flex-wrap gap-2">
-                        {pickerItems.map((item) => (
-                          <button
-                            key={`${pickerTab}-${item}`}
-                            type="button"
-                            onClick={() => {
-                              onAppendEmoji(item);
-                              setIsPickerOpen(false);
-                            }}
-                            className={`rounded-full border border-black/10 bg-white px-3 py-2 ${
-                              pickerTab === "emoji" ? "text-lg" : "text-sm"
-                            }`}
-                          >
-                            {item}
-                          </button>
-                        ))}
+                      <div className="mt-3 max-h-[220px] overflow-y-auto rounded-[16px] bg-[#fcf7f1] p-2">
+                        <div className="flex flex-wrap gap-2">
+                          {pickerItems.map((item) => (
+                            <button
+                              key={`${pickerTab}-${item}`}
+                              type="button"
+                              onClick={() => {
+                                onAppendEmoji(item);
+                                setIsPickerOpen(false);
+                              }}
+                              className={`rounded-full border border-black/10 bg-white px-3 py-2 ${
+                                pickerTab === "emoji" ? "text-lg" : "text-sm"
+                              }`}
+                            >
+                              {item}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ) : null}
+                  ) : null}
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <label className="flex items-center gap-2 rounded-full border border-black/10 bg-[#faf7f1] px-3 py-1 text-xs text-stone-700">
+                    <span>{t("image border")}</span>
+                    <button
+                      type="button"
+                      onClick={toggleImageBorder}
+                      disabled={!selectedImageAsset}
+                      className={`rounded-full px-3 py-1 disabled:cursor-not-allowed disabled:opacity-40 ${(selectedImageAsset?.imageBorderEnabled ?? false) ? "bg-[#203b35] text-white" : "bg-white text-stone-700"}`}
+                    >
+                      {(selectedImageAsset?.imageBorderEnabled ?? false) ? t("enabled") : t("disabled")}
+                    </button>
+                  </label>
+                  <label className="flex items-center gap-2 rounded-full border border-black/10 bg-[#faf7f1] px-3 py-1 text-xs text-stone-700">
+                    <span>{t("border width")}</span>
+                    <input
+                      type="number"
+                      min={1}
+                      step={1}
+                      list="image-border-width-options"
+                      value={borderWidthValue}
+                      disabled={!selectedImageAsset}
+                      onChange={(event) => {
+                        const nextValue = event.target.value;
+                        setBorderWidthValue(nextValue);
+
+                        if (borderWidthOptions.includes(Number(nextValue))) {
+                          commitImageBorderWidth(nextValue);
+                        }
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          commitImageBorderWidth(borderWidthValue);
+                        }
+                      }}
+                      className="w-16 appearance-none border-none bg-transparent text-right outline-none disabled:cursor-not-allowed disabled:opacity-40 [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      placeholder="px"
+                      aria-label={t("border width")}
+                    />
+                    <datalist id="image-border-width-options">
+                      {borderWidthOptions.map((borderWidth) => (
+                        <option key={borderWidth} value={borderWidth} />
+                      ))}
+                    </datalist>
+                  </label>
+                  <label className="flex items-center gap-2 rounded-full border border-black/10 bg-[#faf7f1] px-3 py-1 text-xs text-stone-700">
+                    <span>{t("size")}</span>
+                    <input
+                      type="number"
+                      min={1}
+                      step={1}
+                      list="font-size-options"
+                      value={fontSizeValue}
+                      onChange={(event) => {
+                        const nextValue = event.target.value;
+                        setFontSizeValue(nextValue);
+
+                        if (sizeOptions.includes(Number(nextValue))) {
+                          commitFontSize(nextValue);
+                        }
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          commitFontSize(fontSizeValue);
+                        }
+                      }}
+                      className="w-16 appearance-none border-none bg-transparent text-right outline-none [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      placeholder="px"
+                      aria-label={t("font size")}
+                    />
+                    <datalist id="font-size-options">
+                      {sizeOptions.map((fontSize) => (
+                        <option key={fontSize} value={fontSize} />
+                      ))}
+                    </datalist>
+                  </label>
+                  <label className="flex items-center gap-2 rounded-full border border-black/10 bg-[#faf7f1] px-3 py-1 text-xs text-stone-700">
+                    <span>{t("spacing")}</span>
+                    <input
+                      type="number"
+                      min={0}
+                      step={1}
+                      list="content-spacing-options"
+                      value={spacingValue}
+                      onChange={(event) => {
+                        const nextValue = event.target.value;
+                        setSpacingValue(nextValue);
+
+                        if (spacingOptions.includes(Number(nextValue))) {
+                          commitContentPadding(nextValue);
+                        }
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          commitContentPadding(spacingValue);
+                        }
+                      }}
+                      className="w-16 appearance-none border-none bg-transparent text-right outline-none [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      placeholder="px"
+                      aria-label={t("content spacing")}
+                    />
+                    <datalist id="content-spacing-options">
+                      {spacingOptions.map((spacing) => (
+                        <option key={spacing} value={spacing} />
+                      ))}
+                    </datalist>
+                  </label>
+                </div>
               </div>
 
               <textarea
@@ -331,15 +496,28 @@ export function ContentEditorModal({
               <div className="mt-4 space-y-3">
                 {draft.attachments.length > 0 ? (
                   draft.attachments.map((asset) => (
-                    <div key={asset.id} className="flex items-center justify-between gap-3 rounded-[18px] border border-black/10 bg-[#fffdfa] px-4 py-3">
+                    <div
+                      key={asset.id}
+                      onClick={() => {
+                        if (asset.type.startsWith("image/")) {
+                          setSelectedImageAssetId(asset.id);
+                        }
+                      }}
+                      className={`flex items-center justify-between gap-3 rounded-[18px] border px-4 py-3 ${selectedImageAsset?.id === asset.id ? "border-[#203b35] bg-[#f4f8f7]" : "border-black/10 bg-[#fffdfa]"} ${asset.type.startsWith("image/") ? "cursor-pointer" : ""}`}
+                    >
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium text-stone-800">{asset.name}</p>
                         <p className="text-xs text-stone-500">
                           {asset.type} / {asset.size.toLocaleString()} {t("bytes")} / binary[{asset.bytes.length}]
                         </p>
+                        {asset.type.startsWith("image/") ? (
+                          <p className="mt-1 text-xs text-stone-500">
+                            {selectedImageAsset?.id === asset.id ? t("selected image") : t("click to select image")}
+                          </p>
+                        ) : null}
                       </div>
                       <div className="flex shrink-0 gap-2">
-                        <button type="button" onClick={() => onInsertAttachmentImage(asset)} disabled={!asset.type.startsWith("image/")} className="rounded-full border border-black/10 bg-white px-3 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-40">{t("insert image")}</button>
+                        <button type="button" onClick={() => { setSelectedImageAssetId(asset.id); onInsertAttachmentImage(asset); }} disabled={!asset.type.startsWith("image/")} className="rounded-full border border-black/10 bg-white px-3 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-40">{t("insert image")}</button>
                         <button type="button" onClick={() => onInsertAttachmentTag(asset)} className="rounded-full border border-black/10 bg-white px-3 py-1 text-xs">{t("insert tag")}</button>
                         <button type="button" onClick={() => onRemoveAttachment(asset.id)} className="rounded-full border border-black/10 bg-white px-3 py-1 text-xs">{t("remove")}</button>
                       </div>
@@ -420,21 +598,55 @@ export function ContentEditorModal({
                   </div>
                 )}
               </div>
+
+              <div className="mt-4 rounded-[18px] border border-black/10 bg-[#fffdfa] px-4 py-3">
+                {draft.backgroundImage ? (
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-stone-800">{draft.backgroundImage.name}</p>
+                      <p className="text-xs text-stone-500">
+                        {draft.backgroundImage.type} / {draft.backgroundImage.size.toLocaleString()} {t("bytes")}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={removeBackgroundImage}
+                      className="shrink-0 rounded-full border border-black/10 bg-white px-3 py-1 text-xs"
+                    >
+                      {t("remove")}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="text-sm text-stone-500">{t("no background image selected.")}</div>
+                )}
+              </div>
             </div>
 
             <div className="rounded-[24px] border border-black/10 bg-white p-4">
               <p className="text-sm font-semibold text-stone-800">{t("live preview")}</p>
-              <div
-                className="mt-4 overflow-y-auto rounded-[22px] border border-black/10 bg-[#fffdfa] p-4 font-mono text-sm leading-6"
-                style={{
-                  height: `${previewHeight}px`,
-                  backgroundColor: draft.backgroundColor,
-                  backgroundImage: draftBackgroundUrl ? `linear-gradient(rgba(20,20,20,0.18), rgba(20,20,20,0.18)), url(${draftBackgroundUrl})` : undefined,
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
-                }}
-              >
-                <ContentBlocks contentText={draft.contentText} attachments={draft.attachments} lineKeyPrefix="draft" />
+              <div className="mt-4 overflow-x-auto rounded-[22px] border border-black/10 bg-[#faf7f1] p-3">
+                <div
+                  className={`${hasTextContent ? "overflow-y-auto" : "overflow-hidden"} rounded-[18px] bg-black/6 font-mono text-sm leading-6 backdrop-blur-[1px]`}
+                  style={{
+                    width: "100%",
+                    height: `${previewHeight}px`,
+                    padding: `${draft.contentPadding ?? 12}px`,
+                    backgroundColor: draft.backgroundColor,
+                    backgroundImage: draftBackgroundUrl
+                      ? `linear-gradient(rgba(20,20,20,0.18), rgba(20,20,20,0.18)), url(${draftBackgroundUrl})`
+                      : undefined,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                  }}
+                >
+                  <ContentBlocks
+                    contentText={draft.contentText}
+                    attachments={draft.attachments}
+                    lineKeyPrefix="draft"
+                    imageBorderEnabled={draft.imageBorderEnabled}
+                    imageBorderWidth={draft.imageBorderWidth}
+                  />
+                </div>
               </div>
             </div>
           </section>

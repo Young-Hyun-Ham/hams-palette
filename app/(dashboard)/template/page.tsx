@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import { Suspense, useEffect, useMemo, useState, type ChangeEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -13,7 +13,11 @@ import {
   binaryToDataUrl,
   colClass,
   findPaletteItem,
+  hasTextualContent,
   paletteItems,
+  resolveContentPadding,
+  resolveImageBorderEnabled,
+  resolveImageBorderWidth,
   type BinaryAsset,
   type DashboardTemplate,
   type EditorDraft,
@@ -23,9 +27,7 @@ import {
 
 const defaultLayoutIds = ["layer", "layer", "layer", "layer", "layer", "layer", "layer"];
 const colOptions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-const frameHeightOptions = Array.from({ length: 41 }, (_, index) => (index + 2) * 20);
 const tabCountOptions = [2, 3, 4, 5];
-const contentHeightOptions = Array.from({ length: 35 }, (_, index) => (index + 1) * 10);
 const emojiOptions = ["😀", "😁", "😂", "😍", "😎", "🔥", "✨", "🎉", "💡", "📌", "🌿", "🚀"];
 const textOptions = [":)", ":D", "<3", "*", "!", "+", "#", "~"];
 
@@ -50,6 +52,7 @@ function cloneLayoutItems(items: LayoutItem[]): LayoutItem[] {
       ...tab,
       layout: cloneLayoutItems(tab.layout),
     })),
+    childLayout: cloneLayoutItems(item.childLayout ?? []),
   }));
 }
 
@@ -65,6 +68,11 @@ function findLayoutItemById(items: LayoutItem[], instanceId: string): LayoutItem
         return found;
       }
     }
+
+    const childFound = findLayoutItemById(item.childLayout ?? [], instanceId);
+    if (childFound) {
+      return childFound;
+    }
   }
 
   return null;
@@ -79,17 +87,13 @@ function updateLayoutItemsById(
     if (item.instanceId === instanceId) {
       return updater(item);
     }
-
-    if (!item.tabs?.length) {
-      return item;
-    }
-
     return {
       ...item,
-      tabs: item.tabs.map((tab) => ({
+      tabs: item.tabs?.map((tab) => ({
         ...tab,
         layout: updateLayoutItemsById(tab.layout, instanceId, updater),
       })),
+      childLayout: updateLayoutItemsById(item.childLayout ?? [], instanceId, updater),
     };
   });
 }
@@ -113,6 +117,9 @@ function makeLayoutItem(paletteId: string, index: number): LayoutItem {
     cols: item?.defaultCols ?? 12,
     frameHeight: item?.defaultContentHeight ?? 120,
     contentHeight: item?.defaultContentHeight ?? 120,
+    contentPadding: 5,
+    imageBorderEnabled: false,
+    imageBorderWidth: 1,
     contentEnabled: true,
     contentText: item?.defaultContent ?? "",
     backgroundImage: null,
@@ -121,6 +128,7 @@ function makeLayoutItem(paletteId: string, index: number): LayoutItem {
     tabCount: item?.supportsTabs ? defaultTabCount : undefined,
     activeTabId: item?.supportsTabs ? `${instanceId}-tab-1` : undefined,
     tabs: item?.supportsTabs ? createEmptyTabs(instanceId, defaultTabCount) : undefined,
+    childLayout: paletteId === "layer" ? [] : undefined,
   };
 }
 
@@ -137,6 +145,8 @@ async function toBinaryAsset(file: File): Promise<BinaryAsset> {
     type: file.type || "application/octet-stream",
     size: file.size,
     bytes: Array.from(new Uint8Array(buffer)),
+    imageBorderEnabled: false,
+    imageBorderWidth: 1,
   };
 }
 
@@ -167,26 +177,30 @@ function BlockPreview({
   if (!paletteItem) {
     return null;
   }
-  const previewHeight = layoutItem.frameHeight ?? layoutItem.contentHeight;
-  const containerHeight = compact ? `${previewHeight}px` : "100%";
+  const containerHeight = `${layoutItem.contentHeight}px`;
 
   if (!layoutItem.contentEnabled) {
     return (
       <div
-        className={`${compact ? "" : "mt-5 flex-1 min-h-0 rounded-[18px] border border-dashed border-current/20 bg-white/30 p-4"} overflow-y-auto`}
+        className={`${compact ? "" : "mt-5 rounded-[18px] border border-dashed border-current/20 bg-white/30 p-4"} overflow-y-auto`}
         style={{ height: containerHeight }}
       />
     );
   }
 
   const backgroundUrl = binaryToDataUrl(layoutItem.backgroundImage);
+  const contentPadding = resolveContentPadding(layoutItem.contentPadding);
+  const imageBorderEnabled = resolveImageBorderEnabled(layoutItem.imageBorderEnabled);
+  const imageBorderWidth = resolveImageBorderWidth(layoutItem.imageBorderWidth);
+  const hasTextContent = hasTextualContent(layoutItem.contentText);
   const activeTab =
     layoutItem.tabs?.find((tab) => tab.id === layoutItem.activeTabId) ?? layoutItem.tabs?.[0];
+  const hasChildLayout = (layoutItem.childLayout?.length ?? 0) > 0;
 
   if (layoutItem.paletteId === "tabs") {
     return (
       <div
-        className={`flex flex-col overflow-hidden rounded-[18px] border border-black/10 bg-white/60 p-4 ${compact ? "" : "mt-5 flex-1 min-h-0"}`}
+        className={`flex flex-col overflow-hidden rounded-[18px] border border-black/10 bg-white/60 p-4 ${compact ? "" : "mt-5"}`}
         style={{ height: containerHeight }}
       >
         <div className="flex flex-wrap gap-2">
@@ -233,25 +247,72 @@ function BlockPreview({
     );
   }
 
+  if (layoutItem.paletteId === "layer" && hasChildLayout) {
+    return (
+      <div
+        className={`overflow-y-auto rounded-[18px] border border-black/10 bg-white p-4 ${compact ? "" : "mt-5"}`}
+        style={{ height: containerHeight }}
+      >
+        {hasTextContent ? (
+          <div
+            className="mb-4 rounded-[16px] border border-black/8 bg-white font-mono text-sm leading-6"
+            style={{ padding: `${contentPadding}px` }}
+          >
+            <ContentBlocks
+              contentText={layoutItem.contentText}
+              attachments={layoutItem.attachments}
+              lineKeyPrefix={`${layoutItem.instanceId}-builder-layer-content`}
+              imageBorderEnabled={imageBorderEnabled}
+              imageBorderWidth={imageBorderWidth}
+            />
+          </div>
+        ) : null}
+
+        <div className="grid grid-cols-12 gap-3">
+          {(layoutItem.childLayout ?? []).map((child, index) => {
+            const childPalette = findPaletteItem(child.paletteId);
+            if (!childPalette) {
+              return null;
+            }
+
+            return (
+              <div key={child.instanceId} className={colClass(child.cols)}>
+                <div className={`rounded-[18px] border border-black/8 p-4 ${childPalette.cardClassName}`}>
+                  <p className="text-xs uppercase tracking-[0.18em] opacity-70">
+                    {frameTitle(t(childPalette.name), index)}
+                  </p>
+                  <BlockPreview layoutItem={child} compact />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
-      className={`${compact ? "" : "mt-5 flex-1 min-h-0 rounded-[18px] bg-black/6 p-4 backdrop-blur-[1px]"} overflow-y-auto`}
+      className={`${compact ? "" : "mt-5 rounded-[18px] bg-black/6 backdrop-blur-[1px]"} overflow-y-auto`}
       style={
         backgroundUrl
           ? {
-              height: containerHeight,
-              backgroundColor: layoutItem.backgroundColor,
-              backgroundImage: `linear-gradient(rgba(20,20,20,0.22), rgba(20,20,20,0.22)), url(${backgroundUrl})`,
-              backgroundSize: "cover",
+                height: containerHeight,
+                padding: `${contentPadding}px`,
+                backgroundColor: layoutItem.backgroundColor,
+                backgroundImage: `linear-gradient(rgba(20,20,20,0.22), rgba(20,20,20,0.22)), url(${backgroundUrl})`,
+                backgroundSize: "cover",
               backgroundPosition: "center",
             }
           : layoutItem.backgroundColor
             ? {
                 height: containerHeight,
+                padding: `${contentPadding}px`,
                 backgroundColor: layoutItem.backgroundColor,
               }
             : {
                 height: containerHeight,
+                padding: `${contentPadding}px`,
               }
       }
     >
@@ -260,8 +321,10 @@ function BlockPreview({
         attachments={layoutItem.attachments}
         lineKeyPrefix={layoutItem.instanceId}
         openLinksInNewTab={layoutItem.paletteId === "menu"}
+        imageBorderEnabled={imageBorderEnabled}
+        imageBorderWidth={imageBorderWidth}
       />
-      {layoutItem.attachments.length > 0 ? (
+      {/* {layoutItem.attachments.length > 0 ? (
         <div className="mt-4 flex flex-wrap gap-2">
           {layoutItem.attachments.map((asset) => (
             <span key={asset.id} className="rounded-full border border-current/15 px-3 py-1 text-xs">
@@ -269,12 +332,12 @@ function BlockPreview({
             </span>
           ))}
         </div>
-      ) : null}
+      ) : null} */}
     </div>
   );
 }
 
-export default function CreatePage() {
+function TemplateBuilderPage() {
   const { t } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -351,6 +414,7 @@ export default function CreatePage() {
   const selectedTab =
     selectedLayoutItem?.tabs?.find((tab) => tab.id === selectedLayoutItem.activeTabId) ??
     selectedLayoutItem?.tabs?.[0];
+  const selectedLayerChildren = selectedLayoutItem?.childLayout ?? [];
   const previewItems = useMemo(
     () =>
       layout
@@ -380,6 +444,9 @@ export default function CreatePage() {
       cols: item.defaultCols,
       frameHeight: item.defaultContentHeight,
       contentHeight: item.defaultContentHeight,
+      contentPadding: 12,
+      imageBorderEnabled: false,
+      imageBorderWidth: 1,
       contentEnabled: true,
       contentText: item.defaultContent,
       backgroundImage: null,
@@ -388,6 +455,7 @@ export default function CreatePage() {
       tabCount: item.supportsTabs ? defaultTabCount : undefined,
       activeTabId: item.supportsTabs ? `${instanceId}-tab-1` : undefined,
       tabs: item.supportsTabs ? createEmptyTabs(instanceId, defaultTabCount) : undefined,
+      childLayout: paletteId === "layer" ? [] : undefined,
     };
   };
 
@@ -458,27 +526,14 @@ export default function CreatePage() {
   };
 
   const updateSelected = (
-    field: "cols" | "frameHeight" | "contentHeight" | "contentEnabled",
+    field: "cols" | "contentHeight" | "contentEnabled",
     value: number | boolean,
   ) => {
     if (!selectedLayoutItem) {
       return;
     }
 
-    updateLayoutItem(selectedLayoutItem.instanceId, (item) => {
-      if (field === "contentHeight" && typeof value === "number") {
-        const nextFrameHeight =
-          typeof item.frameHeight === "number" && item.frameHeight > value ? value : item.frameHeight;
-
-        return {
-          ...item,
-          contentHeight: value,
-          frameHeight: nextFrameHeight,
-        };
-      }
-
-      return { ...item, [field]: value };
-    });
+    updateLayoutItem(selectedLayoutItem.instanceId, (item) => ({ ...item, [field]: value }));
   };
 
   const updateSelectedTabCount = (count: number) => {
@@ -552,6 +607,33 @@ export default function CreatePage() {
     }));
   };
 
+  const appendPaletteToLayer = (paletteId: string) => {
+    if (!selectedLayoutItem || selectedLayoutItem.paletteId !== "layer") {
+      return;
+    }
+
+    const created = createLayoutFromPalette(paletteId);
+    if (!created) {
+      return;
+    }
+
+    updateLayoutItem(selectedLayoutItem.instanceId, (item) => ({
+      ...item,
+      childLayout: [...(item.childLayout ?? []), created],
+    }));
+  };
+
+  const removePaletteFromLayer = (childInstanceId: string) => {
+    if (!selectedLayoutItem || selectedLayoutItem.paletteId !== "layer") {
+      return;
+    }
+
+    updateLayoutItem(selectedLayoutItem.instanceId, (item) => ({
+      ...item,
+      childLayout: (item.childLayout ?? []).filter((child) => child.instanceId !== childInstanceId),
+    }));
+  };
+
   const openEditorForItem = (instanceId: string) => {
     const target = findLayoutItemById(layout, instanceId);
     if (!target || target.paletteId === "tabs") {
@@ -561,6 +643,9 @@ export default function CreatePage() {
     setEditorDraft({
       instanceId: target.instanceId,
       contentText: target.contentText,
+      contentPadding: target.contentPadding,
+      imageBorderEnabled: target.imageBorderEnabled,
+      imageBorderWidth: target.imageBorderWidth,
       backgroundImage: cloneAsset(target.backgroundImage),
       backgroundColor: target.backgroundColor,
       attachments: cloneAssets(target.attachments),
@@ -625,6 +710,9 @@ export default function CreatePage() {
     updateLayoutItem(editorDraft.instanceId, (item) => ({
       ...item,
       contentText: editorDraft.contentText,
+      contentPadding: editorDraft.contentPadding,
+      imageBorderEnabled: editorDraft.imageBorderEnabled,
+      imageBorderWidth: editorDraft.imageBorderWidth,
       backgroundImage: cloneAsset(editorDraft.backgroundImage),
       backgroundColor: editorDraft.backgroundColor,
       attachments: cloneAssets(editorDraft.attachments),
@@ -777,7 +865,7 @@ export default function CreatePage() {
           </div>
         </aside>
 
-        <section className="flex-1 border-b border-black/10 bg-[#eee2d2] px-4 py-5 lg:px-6 xl:border-r xl:border-b-0">
+        <section className="flex-1 border-b border-black/10 bg-white px-4 py-5 lg:px-6 xl:border-r xl:border-b-0">
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
@@ -816,13 +904,13 @@ export default function CreatePage() {
             </div>
           </div>
 
-          <div className="mt-6 rounded-[30px] border border-black/10 bg-[#fcf7f1] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
-            <div className="flex items-center justify-between rounded-[22px] border border-dashed border-black/10 bg-[#f6ede1] px-4 py-3 text-sm text-stone-600">
+          <div className="mt-6 rounded-[30px] border border-black/10 bg-white p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
+            <div className="flex items-center justify-between rounded-[22px] border border-dashed border-black/10 bg-[#fafafa] px-4 py-3 text-sm text-stone-600">
               <span>{t("canvas width 1440px")}</span>
               <span>{t("grid 12 / full content view")}</span>
             </div>
 
-            <div className="mt-4 grid min-h-[760px] grid-cols-12 gap-3 rounded-[26px] bg-[linear-gradient(180deg,#fffdf9_0%,#f7efe5_100%)] p-3" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); appendDrop(); }}>
+            <div className="mt-4 mx-auto grid min-h-[760px] w-full max-w-[1440px] grid-cols-12 gap-3 rounded-[26px] bg-white p-3" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); appendDrop(); }}>
               {layout.map((layoutItem, index) => {
                 const item = findPaletteItem(layoutItem.paletteId);
                 if (!item) return null;
@@ -830,7 +918,7 @@ export default function CreatePage() {
                 const isSelected = selectedId === layoutItem.instanceId;
 
                 return (
-                  <article key={layoutItem.instanceId} draggable onClick={() => setSelectedId(layoutItem.instanceId)} onDragStart={() => setDraggingId(layoutItem.instanceId)} onDragEnd={() => setDraggingId(null)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); event.stopPropagation(); moveOrInsert(index); }} className={`relative flex self-start flex-col overflow-hidden rounded-[24px] border border-black/8 p-5 shadow-[0_12px_24px_rgba(25,20,15,0.05)] ${colClass(layoutItem.cols)} ${item.cardClassName} ${isSelected ? "ring-2 ring-[#d86c3b]" : ""}`} style={{ height: `${layoutItem.frameHeight ?? layoutItem.contentHeight}px` }}>
+                  <article key={layoutItem.instanceId} draggable onClick={() => setSelectedId(layoutItem.instanceId)} onDragStart={() => setDraggingId(layoutItem.instanceId)} onDragEnd={() => setDraggingId(null)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); event.stopPropagation(); moveOrInsert(index); }} className={`relative flex self-start flex-col overflow-hidden rounded-[24px] border border-black/8 p-5 shadow-[0_12px_24px_rgba(25,20,15,0.05)] ${colClass(layoutItem.cols)} ${item.cardClassName} ${isSelected ? "ring-2 ring-[#d86c3b]" : ""}`}>
                     <div className="flex items-center justify-between gap-2">
                       <h3 className="text-xl font-semibold">{frameTitle(t(item.name), index)}</h3>
                       <button type="button" onClick={(event) => { event.stopPropagation(); handleRemove(layoutItem.instanceId); }} className="rounded-full border border-current/15 px-3 py-1 text-xs">{t("remove")}</button>
@@ -841,7 +929,7 @@ export default function CreatePage() {
                 );
               })}
 
-              <button type="button" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); event.stopPropagation(); appendDrop(); }} className="col-span-12 rounded-[24px] border border-dashed border-black/15 bg-[#f6ede1] px-6 py-10 text-left text-stone-500">
+              <button type="button" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); event.stopPropagation(); appendDrop(); }} className="col-span-12 rounded-[24px] border border-dashed border-black/15 bg-[#fafafa] px-6 py-10 text-left text-stone-500">
                 <p className="text-sm uppercase tracking-[0.22em] text-[#b66537]">{t("drop zone")}</p>
                 <p className="mt-3 text-lg font-semibold text-stone-800">{t("drag a block here to append it to the layout.")}</p>
               </button>
@@ -875,16 +963,14 @@ export default function CreatePage() {
 
               <label className="block">
                 <span className="mb-2 block text-sm font-medium text-stone-700">{t("content height")}</span>
-                <select value={selectedLayoutItem?.contentHeight ?? 120} onChange={(event) => updateSelected("contentHeight", Number(event.target.value))} className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none">
-                  {contentHeightOptions.map((option) => <option key={option} value={option}>{option}px</option>)}
-                </select>
-              </label>
-
-              <label className="block">
-                <span className="mb-2 block text-sm font-medium text-stone-700">{t("frame height")}</span>
-                <select value={selectedLayoutItem?.frameHeight ?? selectedLayoutItem?.contentHeight ?? 120} onChange={(event) => updateSelected("frameHeight", Number(event.target.value))} className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none">
-                  {frameHeightOptions.map((option) => <option key={option} value={option}>{option}px</option>)}
-                </select>
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={selectedLayoutItem?.contentHeight ?? 120}
+                  onChange={(event) => updateSelected("contentHeight", Math.max(0, Number(event.target.value) || 0))}
+                  className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none"
+                />
               </label>
 
               <label className="flex items-center justify-between rounded-[20px] border border-black/10 bg-[#faf7f1] px-4 py-3">
@@ -946,6 +1032,46 @@ export default function CreatePage() {
                     </div>
                   </div>
                 </div>
+              ) : selectedLayoutItem?.paletteId === "layer" ? (
+                <div className="space-y-4 rounded-[22px] border border-black/10 bg-[#faf7f1] p-4">
+                  <div className="rounded-[18px] border border-black/10 bg-white p-4">
+                    <p className="text-sm font-semibold text-stone-800">{t("layer content palette")}</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {paletteItems.map((item) => (
+                        <button key={item.id} type="button" onClick={() => appendPaletteToLayer(item.id)} className="rounded-full border border-black/10 bg-[#faf7f1] px-3 py-2 text-xs">
+                          {t("add")} {t(item.name)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="rounded-[18px] border border-black/10 bg-white p-4">
+                    <p className="text-sm font-semibold text-stone-800">{t("layer content blocks")}</p>
+                    <div className="mt-3 space-y-2">
+                      {selectedLayerChildren.length > 0 ? selectedLayerChildren.map((child) => {
+                        const childPalette = findPaletteItem(child.paletteId);
+                        return (
+                          <div key={child.instanceId} onClick={() => openEditorForItem(child.instanceId)} className="flex cursor-pointer items-center justify-between gap-3 rounded-[14px] border border-black/10 px-3 py-2 text-sm transition hover:bg-[#faf7f1]">
+                            <span>{childPalette ? t(childPalette.name) : child.paletteId}</span>
+                            <button type="button" onClick={(event) => { event.stopPropagation(); removePaletteFromLayer(child.instanceId); }} className="rounded-full border border-black/10 px-3 py-1 text-xs">{t("remove")}</button>
+                          </div>
+                        );
+                      }) : <div className="rounded-[14px] border border-dashed border-black/10 px-4 py-5 text-sm text-stone-500">{t("no blocks in this layer yet.")}</div>}
+                    </div>
+                  </div>
+
+                  {selectedLayoutItem.contentEnabled ? (
+                    <div className="rounded-[18px] border border-black/10 bg-white p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-stone-800">{t("content editor")}</p>
+                          <p className="text-xs text-stone-500">{t("edit text, background image, and attachments.")}</p>
+                        </div>
+                        <button type="button" onClick={openEditor} className="rounded-full border border-black/10 bg-white px-2 py-2 text-sm">{t("open")}</button>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
               ) : selectedLayoutItem?.contentEnabled ? (
                 <div className="rounded-[22px] border border-black/10 bg-[#faf7f1] p-4">
                   <div className="flex items-center justify-between gap-3">
@@ -987,5 +1113,13 @@ export default function CreatePage() {
         />
       ) : null}
     </main>
+  );
+}
+
+export default function CreatePage() {
+  return (
+    <Suspense fallback={<main className="min-h-screen bg-white" />}>
+      <TemplateBuilderPage />
+    </Suspense>
   );
 }

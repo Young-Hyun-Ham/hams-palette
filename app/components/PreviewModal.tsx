@@ -8,6 +8,10 @@ import {
   binaryToDataUrl,
   colClass,
   findPaletteItem,
+  hasTextualContent,
+  resolveContentPadding,
+  resolveImageBorderEnabled,
+  resolveImageBorderWidth,
   type LayoutItem,
   type PaletteItem,
 } from "../utils/shared";
@@ -38,11 +42,16 @@ function PreviewBlock({
   }
 
   const backgroundUrl = binaryToDataUrl(layoutItem.backgroundImage);
+  const contentPadding = resolveContentPadding(layoutItem.contentPadding);
+  const imageBorderEnabled = resolveImageBorderEnabled(layoutItem.imageBorderEnabled);
+  const imageBorderWidth = resolveImageBorderWidth(layoutItem.imageBorderWidth);
+  const hasTextContent = hasTextualContent(layoutItem.contentText);
   const [activeTabId, setActiveTabId] = useState(
     () => layoutItem.activeTabId ?? layoutItem.tabs?.[0]?.id,
   );
   const activeTab =
     layoutItem.tabs?.find((tab) => tab.id === activeTabId) ?? layoutItem.tabs?.[0];
+  const hasChildLayout = (layoutItem.childLayout?.length ?? 0) > 0;
 
   if (layoutItem.paletteId === "tabs") {
     return (
@@ -50,7 +59,7 @@ function PreviewBlock({
         className={`rounded-[18px] border border-black/10 bg-white/70 p-4 ${
           compact ? "" : paletteItem.cardClassName
         }`}
-        style={{ minHeight: `${layoutItem.contentHeight}px` }}
+        style={{ height: compact ? "100%" : `${layoutItem.contentHeight}px` }}
       >
         <div className="flex flex-wrap gap-2">
           {(layoutItem.tabs ?? []).map((tab) => (
@@ -87,11 +96,50 @@ function PreviewBlock({
     );
   }
 
+  if (layoutItem.paletteId === "layer" && hasChildLayout) {
+    return (
+      <div
+        className={`${hasTextContent ? "overflow-y-auto" : "overflow-hidden"} rounded-[18px] border border-black/10 bg-white p-4`}
+        style={{ height: compact ? "100%" : `${layoutItem.contentHeight}px` }}
+      >
+        {hasTextContent ? (
+          <div
+            className="mb-4 rounded-[16px] border border-black/8 bg-white font-mono text-sm leading-6"
+            style={{ padding: `${contentPadding}px` }}
+          >
+            <ContentBlocks
+              contentText={layoutItem.contentText}
+              attachments={layoutItem.attachments}
+              lineKeyPrefix={`${layoutItem.instanceId}-preview-layer-content`}
+              imageBorderEnabled={imageBorderEnabled}
+              imageBorderWidth={imageBorderWidth}
+            />
+          </div>
+        ) : null}
+        <div className="grid grid-cols-12 gap-3">
+          {(layoutItem.childLayout ?? []).map((child) => {
+            const childPalette = findPaletteItem(child.paletteId);
+            if (!childPalette) {
+              return null;
+            }
+
+            return (
+              <div key={child.instanceId} className={colClass(child.cols)}>
+                <PreviewBlock layoutItem={child} paletteItem={childPalette} compact />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
-      className={`overflow-y-auto rounded-[18px] p-4 font-mono text-sm leading-6 ${paletteItem.cardClassName}`}
+      className={`${hasTextContent ? "overflow-y-auto" : "overflow-hidden"} rounded-[18px] font-mono text-sm leading-6 ${paletteItem.cardClassName}`}
       style={{
         height: compact ? "100%" : `${layoutItem.contentHeight}px`,
+        padding: `${contentPadding}px`,
         backgroundColor: layoutItem.backgroundColor,
         backgroundImage: backgroundUrl
           ? `linear-gradient(rgba(20,20,20,0.22), rgba(20,20,20,0.22)), url(${backgroundUrl})`
@@ -105,6 +153,8 @@ function PreviewBlock({
         attachments={layoutItem.attachments}
         lineKeyPrefix={`${layoutItem.instanceId}-preview`}
         openLinksInNewTab={layoutItem.paletteId === "menu"}
+        imageBorderEnabled={imageBorderEnabled}
+        imageBorderWidth={imageBorderWidth}
       />
     </div>
   );
@@ -115,7 +165,7 @@ export function PreviewModal({ items, onClose }: PreviewModalProps) {
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/55 p-4">
-      <div className="flex max-h-[92vh] w-full max-w-[1500px] flex-col overflow-hidden rounded-[30px] bg-[#fbf6ef] shadow-[0_36px_120px_rgba(0,0,0,0.35)]">
+      <div className="flex max-h-[92vh] w-full max-w-[1500px] flex-col overflow-hidden rounded-[30px] bg-white shadow-[0_36px_120px_rgba(0,0,0,0.35)]">
         <div className="flex items-center justify-between border-b border-black/10 px-6 py-5">
           <div>
             <p className="text-xs uppercase tracking-[0.24em] text-[#b66537]">{t("preview")}</p>
@@ -131,10 +181,12 @@ export function PreviewModal({ items, onClose }: PreviewModalProps) {
         </div>
 
         <div className="overflow-auto px-5 py-5">
-          <div className="grid grid-cols-12 gap-3 rounded-[26px] bg-white/60 p-4">
+          <div className="mx-auto grid w-full max-w-[1440px] grid-cols-12 gap-3 rounded-[26px] bg-white p-4">
             {items.map(({ layoutItem, paletteItem }) => (
               <div key={layoutItem.instanceId} className={colClass(layoutItem.cols)}>
-                <PreviewBlock layoutItem={layoutItem} paletteItem={paletteItem} />
+                <div className="px-5">
+                  <PreviewBlock layoutItem={layoutItem} paletteItem={paletteItem} />
+                </div>
               </div>
             ))}
           </div>

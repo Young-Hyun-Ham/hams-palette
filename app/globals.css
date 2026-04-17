@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f4efe6;
+  --background: #ffffff;
   --foreground: #1e2421;
 }
 
@@ -17,9 +17,7 @@
 }
 
 html {
-  background:
-    radial-gradient(circle at top, rgba(235, 104, 67, 0.12), transparent 28%),
-    linear-gradient(180deg, #f4efe6 0%, #efe4d1 100%);
+  background: #ffffff;
 }
 
 body {

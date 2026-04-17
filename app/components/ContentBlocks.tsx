@@ -1,6 +1,11 @@
 "use client";
 
-import { binaryToDataUrl, type BinaryAsset } from "../utils/shared";
+import {
+  binaryToDataUrl,
+  resolveImageBorderEnabled,
+  resolveImageBorderWidth,
+  type BinaryAsset,
+} from "../utils/shared";
 
 type ContentBlocksProps = {
   contentText: string;
@@ -8,6 +13,8 @@ type ContentBlocksProps = {
   lineKeyPrefix: string;
   linkResolver?: (href: string) => string;
   openLinksInNewTab?: boolean;
+  imageBorderEnabled?: boolean;
+  imageBorderWidth?: number;
 };
 
 const imageTagPattern = /^!\[(.*?)\]\((.*?)\)$/;
@@ -56,6 +63,8 @@ export function ContentBlocks({
   lineKeyPrefix,
   linkResolver,
   openLinksInNewTab,
+  imageBorderEnabled = false,
+  imageBorderWidth = 1,
 }: ContentBlocksProps) {
   return (
     <div className="space-y-2">
@@ -70,6 +79,12 @@ export function ContentBlocks({
           const [, altText, imageRef] = imageMatch;
           const imageAsset = findImageAsset(imageRef, attachments);
           const imageUrl = binaryToDataUrl(imageAsset ?? null);
+          const resolvedImageBorderEnabled = resolveImageBorderEnabled(
+            imageAsset?.imageBorderEnabled ?? imageBorderEnabled,
+          );
+          const resolvedImageBorderWidth = resolveImageBorderWidth(
+            imageAsset?.imageBorderWidth ?? imageBorderWidth,
+          );
 
           if (imageUrl) {
             return (
@@ -80,7 +95,8 @@ export function ContentBlocks({
                 <img
                   src={imageUrl}
                   alt={altText || imageAsset?.name || "attached image"}
-                  className="inline-block max-h-[280px] max-w-full rounded-[14px] border border-current/10 object-contain"
+                  className={`inline-block max-h-[280px] max-w-full rounded-[14px] object-contain ${resolvedImageBorderEnabled ? "border border-current/10" : ""}`}
+                  style={resolvedImageBorderEnabled ? { borderWidth: `${resolvedImageBorderWidth}px` } : undefined}
                 />
               </div>
             );
