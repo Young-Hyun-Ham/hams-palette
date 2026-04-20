@@ -80,12 +80,17 @@ const FIELD_DEFINITIONS: FieldDefinition[] = [
   {
     id: "checkbox",
     title: "Checkbox",
-    description: "Single checkbox",
+    description: "Multiple checkbox options",
     create: (index) => ({
-      type: "checkbox",
+      type: "selectboxes",
       key: `checkbox${index}`,
       label: "Checkbox",
       input: true,
+      inline: false,
+      values: [
+        { label: "Option 1", value: "option1" },
+        { label: "Option 2", value: "option2" },
+      ],
       validate: { required: false },
     }),
   },
@@ -98,6 +103,7 @@ const FIELD_DEFINITIONS: FieldDefinition[] = [
       key: `radio${index}`,
       label: "Radio",
       input: true,
+      inline: false,
       values: [
         { label: "Option 1", value: "option1" },
         { label: "Option 2", value: "option2" },
@@ -191,11 +197,17 @@ function parseOptionLines(input: string) {
 
 function readOptionLines(component: FormioComponent) {
   const radioValues = Array.isArray(component.values) ? component.values : [];
+  const checkboxValues = Array.isArray(component.values) ? component.values : [];
   const selectValues =
     component.data && typeof component.data === "object" && Array.isArray((component.data as { values?: unknown[] }).values)
       ? ((component.data as { values: Array<{ label?: string; value?: string }> }).values ?? [])
       : [];
-  const source = component.type === "radio" ? radioValues : selectValues;
+  const source =
+    component.type === "radio"
+      ? radioValues
+      : component.type === "selectboxes"
+        ? checkboxValues
+        : selectValues;
 
   return source
     .map((item) => `${String(item.label ?? "")}|${String(item.value ?? "")}`)
@@ -345,10 +357,13 @@ export function FormioBuilderModal({
     ["textfield", "textarea", "email", "number"].includes(selectedComponent.type);
   const supportsOptions =
     selectedComponent &&
-    ["radio", "select"].includes(selectedComponent.type);
+    ["radio", "select", "selectboxes"].includes(selectedComponent.type);
   const supportsRequired =
     selectedComponent &&
     selectedComponent.type !== "button";
+  const supportsInline =
+    selectedComponent &&
+    ["radio", "selectboxes"].includes(selectedComponent.type);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2">
@@ -527,6 +542,22 @@ export function FormioBuilderModal({
                     </label>
                   ) : null}
 
+                  {supportsInline ? (
+                    <label className="flex items-center justify-between rounded-[18px] border border-black/10 bg-white px-4 py-3">
+                      <span className="text-sm font-medium text-stone-700">Horizontal Layout</span>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(selectedComponent.inline)}
+                        onChange={(event) =>
+                          updateSelectedComponent((component) => ({
+                            ...component,
+                            inline: event.target.checked,
+                          }))
+                        }
+                      />
+                    </label>
+                  ) : null}
+
                   {supportsOptions ? (
                     <label className="block">
                       <span className="mb-2 block text-sm font-medium text-stone-700">Options</span>
@@ -536,7 +567,7 @@ export function FormioBuilderModal({
                         onChange={(event) =>
                           updateSelectedComponent((component) => {
                             const options = parseOptionLines(event.target.value);
-                            if (component.type === "radio") {
+                            if (component.type === "radio" || component.type === "selectboxes") {
                               return {
                                 ...component,
                                 values: options,

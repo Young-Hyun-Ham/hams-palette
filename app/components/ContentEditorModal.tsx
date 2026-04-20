@@ -385,50 +385,6 @@ export function ContentEditorModal({
 
                 <div className="flex flex-wrap gap-2">
                   <label className="flex items-center gap-2 rounded-full border border-black/10 bg-[#faf7f1] px-3 py-1 text-xs text-stone-700">
-                    <span>{t("image border")}</span>
-                    <button
-                      type="button"
-                      onClick={toggleImageBorder}
-                      disabled={!selectedImageAsset}
-                      className={`rounded-full px-3 py-1 disabled:cursor-not-allowed disabled:opacity-40 ${(selectedImageAsset?.imageBorderEnabled ?? false) ? "bg-[#203b35] text-white" : "bg-white text-stone-700"}`}
-                    >
-                      {(selectedImageAsset?.imageBorderEnabled ?? false) ? t("enabled") : t("disabled")}
-                    </button>
-                  </label>
-                  <label className="flex items-center gap-2 rounded-full border border-black/10 bg-[#faf7f1] px-3 py-1 text-xs text-stone-700">
-                    <span>{t("border width")}</span>
-                    <input
-                      type="number"
-                      min={1}
-                      step={1}
-                      list="image-border-width-options"
-                      value={borderWidthValue}
-                      disabled={!selectedImageAsset}
-                      onChange={(event) => {
-                        const nextValue = event.target.value;
-                        setBorderWidthValue(nextValue);
-
-                        if (borderWidthOptions.includes(Number(nextValue))) {
-                          commitImageBorderWidth(nextValue);
-                        }
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          event.preventDefault();
-                          commitImageBorderWidth(borderWidthValue);
-                        }
-                      }}
-                      className="w-10 appearance-none border-none bg-transparent text-right outline-none disabled:cursor-not-allowed disabled:opacity-40 [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                      placeholder="px"
-                      aria-label={t("border width")}
-                    />
-                    <datalist id="image-border-width-options">
-                      {borderWidthOptions.map((borderWidth) => (
-                        <option key={borderWidth} value={borderWidth} />
-                      ))}
-                    </datalist>
-                  </label>
-                  <label className="flex items-center gap-2 rounded-full border border-black/10 bg-[#faf7f1] px-3 py-1 text-xs text-stone-700">
                     <span>{t("size")}</span>
                     <input
                       type="number"
@@ -489,6 +445,52 @@ export function ContentEditorModal({
                     <datalist id="content-spacing-options">
                       {spacingOptions.map((spacing) => (
                         <option key={spacing} value={spacing} />
+                      ))}
+                    </datalist>
+                  </label>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <label className="flex items-center gap-2 rounded-full border border-black/10 bg-[#faf7f1] px-3 py-1 text-xs text-stone-700">
+                    <span>{t("image border")}</span>
+                    <button
+                      type="button"
+                      onClick={toggleImageBorder}
+                      disabled={!selectedImageAsset}
+                      className={`rounded-full px-3 py-1 disabled:cursor-not-allowed disabled:opacity-40 ${(selectedImageAsset?.imageBorderEnabled ?? false) ? "bg-[#203b35] text-white" : "bg-white text-stone-700"}`}
+                    >
+                      {(selectedImageAsset?.imageBorderEnabled ?? false) ? t("enabled") : t("disabled")}
+                    </button>
+                  </label>
+                  <label className="flex items-center gap-2 rounded-full border border-black/10 bg-[#faf7f1] px-3 py-1 text-xs text-stone-700">
+                    <span>{t("border width")}</span>
+                    <input
+                      type="number"
+                      min={1}
+                      step={1}
+                      list="image-border-width-options"
+                      value={borderWidthValue}
+                      disabled={!selectedImageAsset}
+                      onChange={(event) => {
+                        const nextValue = event.target.value;
+                        setBorderWidthValue(nextValue);
+
+                        if (borderWidthOptions.includes(Number(nextValue))) {
+                          commitImageBorderWidth(nextValue);
+                        }
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          commitImageBorderWidth(borderWidthValue);
+                        }
+                      }}
+                      className="w-10 appearance-none border-none bg-transparent text-right outline-none disabled:cursor-not-allowed disabled:opacity-40 [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      placeholder="px"
+                      aria-label={t("border width")}
+                    />
+                    <datalist id="image-border-width-options">
+                      {borderWidthOptions.map((borderWidth) => (
+                        <option key={borderWidth} value={borderWidth} />
                       ))}
                     </datalist>
                   </label>
@@ -653,7 +655,6 @@ export function ContentEditorModal({
                   style={{
                     width: "100%",
                     height: `${draft.contentHeight}px`,
-                    padding: `${draft.contentPadding ?? 12}px`,
                     backgroundColor: draft.backgroundColor,
                     backgroundImage: draftBackgroundUrl
                       ? `linear-gradient(rgba(20,20,20,0.18), rgba(20,20,20,0.18)), url(${draftBackgroundUrl})`
@@ -662,13 +663,21 @@ export function ContentEditorModal({
                     backgroundPosition: "center",
                   }}
                 >
-                  <ContentBlocks
-                    contentText={draft.contentText}
-                    attachments={draft.attachments}
-                    lineKeyPrefix="draft"
-                    imageBorderEnabled={draft.imageBorderEnabled}
-                    imageBorderWidth={draft.imageBorderWidth}
-                  />
+                  <div
+                    className={`min-h-full rounded-[16px] ${draft.contentBorderEnabled ? "border border-black/8 bg-white/70" : ""}`}
+                    style={{
+                      padding: `${draft.contentPadding ?? 12}px`,
+                      borderWidth: draft.contentBorderEnabled ? `${draft.contentBorderWidth ?? 1}px` : undefined,
+                    }}
+                  >
+                    <ContentBlocks
+                      contentText={draft.contentText}
+                      attachments={draft.attachments}
+                      lineKeyPrefix="draft"
+                      imageBorderEnabled={draft.imageBorderEnabled}
+                      imageBorderWidth={draft.imageBorderWidth}
+                    />
+                  </div>
                 </div>
               </div>
             </div>

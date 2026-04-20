@@ -10,7 +10,13 @@ import {
   colClass,
   findPaletteItem,
   hasTextualContent,
+  resolvePaletteBorderEnabled,
+  resolvePaletteBorderWidth,
+  resolveContentBorderWidth,
   resolveContentPadding,
+  resolveContentBorderEnabled,
+  resolveFormBorderEnabled,
+  resolveFormBorderWidth,
   resolveImageBorderEnabled,
   resolveImageBorderWidth,
   type LayoutItem,
@@ -43,9 +49,15 @@ function PreviewBlock({
   }
 
   const backgroundUrl = binaryToDataUrl(layoutItem.backgroundImage);
+  const paletteBorderEnabled = resolvePaletteBorderEnabled(layoutItem.paletteBorderEnabled);
+  const paletteBorderWidth = resolvePaletteBorderWidth(layoutItem.paletteBorderWidth);
   const contentPadding = resolveContentPadding(layoutItem.contentPadding);
+  const contentBorderEnabled = resolveContentBorderEnabled(layoutItem.contentBorderEnabled);
+  const contentBorderWidth = resolveContentBorderWidth(layoutItem.contentBorderWidth);
   const imageBorderEnabled = resolveImageBorderEnabled(layoutItem.imageBorderEnabled);
   const imageBorderWidth = resolveImageBorderWidth(layoutItem.imageBorderWidth);
+  const formBorderEnabled = resolveFormBorderEnabled(layoutItem.formBorderEnabled);
+  const formBorderWidth = resolveFormBorderWidth(layoutItem.formBorderWidth);
   const hasTextContent = hasTextualContent(layoutItem.contentText);
   const [activeTabId, setActiveTabId] = useState(
     () => layoutItem.activeTabId ?? layoutItem.tabs?.[0]?.id,
@@ -58,10 +70,13 @@ function PreviewBlock({
   if (layoutItem.paletteId === "tabs") {
     return (
       <div
-        className={`rounded-[18px] border border-black/10 bg-white/70 p-4 ${
+        className={`rounded-[18px] bg-white/70 p-4 ${paletteBorderEnabled ? "border border-black/10" : ""} ${
           compact ? "" : paletteItem.cardClassName
         }`}
-        style={{ height: compact ? "100%" : `${layoutItem.contentHeight}px` }}
+        style={{
+          height: compact ? "100%" : `${layoutItem.contentHeight}px`,
+          borderWidth: paletteBorderEnabled ? `${paletteBorderWidth}px` : undefined,
+        }}
       >
         <div className="flex flex-wrap gap-2">
           {(layoutItem.tabs ?? []).map((tab) => (
@@ -101,13 +116,19 @@ function PreviewBlock({
   if (layoutItem.paletteId === "layer" && (hasChildLayout || hasFormContent)) {
     return (
       <div
-        className={`${hasTextContent ? "overflow-y-auto" : "overflow-hidden"} rounded-[18px] border border-black/10 bg-white p-4`}
-        style={{ height: compact ? "100%" : `${layoutItem.contentHeight}px` }}
+        className={`${hasTextContent ? "overflow-y-auto" : "overflow-hidden"} rounded-[18px] bg-white p-4 ${paletteBorderEnabled ? "border border-black/10" : ""}`}
+        style={{
+          height: compact ? "100%" : `${layoutItem.contentHeight}px`,
+          borderWidth: paletteBorderEnabled ? `${paletteBorderWidth}px` : undefined,
+        }}
       >
         {hasTextContent ? (
           <div
-            className="mb-4 rounded-[16px] border border-black/8 bg-white font-mono text-sm leading-6"
-            style={{ padding: `${contentPadding}px` }}
+            className={`mb-4 rounded-[16px] bg-white font-mono text-sm leading-6 ${contentBorderEnabled ? "border border-black/8" : ""}`}
+            style={{
+              padding: `${contentPadding}px`,
+              borderWidth: contentBorderEnabled ? `${contentBorderWidth}px` : undefined,
+            }}
           >
             <ContentBlocks
               contentText={layoutItem.contentText}
@@ -120,7 +141,11 @@ function PreviewBlock({
         ) : null}
         {hasFormContent ? (
           <div className="mb-4">
-            <FormioRenderedContent schema={layoutItem.formSchema} />
+            <FormioRenderedContent
+              schema={layoutItem.formSchema}
+              borderEnabled={formBorderEnabled}
+              borderWidth={formBorderWidth}
+            />
           </div>
         ) : null}
         <div className="grid grid-cols-12 gap-3">
@@ -143,10 +168,10 @@ function PreviewBlock({
 
   return (
     <div
-      className={`${hasTextContent ? "overflow-y-auto" : "overflow-hidden"} rounded-[18px] font-mono text-sm leading-6 ${paletteItem.cardClassName}`}
+      className={`${hasTextContent ? "overflow-y-auto" : "overflow-hidden"} rounded-[18px] font-mono text-sm leading-6 ${paletteItem.cardClassName} ${paletteBorderEnabled ? "border border-black/8" : ""}`}
       style={{
         height: compact ? "100%" : `${layoutItem.contentHeight}px`,
-        padding: `${contentPadding}px`,
+        borderWidth: paletteBorderEnabled ? `${paletteBorderWidth}px` : undefined,
         backgroundColor: layoutItem.backgroundColor,
         backgroundImage: backgroundUrl
           ? `linear-gradient(rgba(20,20,20,0.22), rgba(20,20,20,0.22)), url(${backgroundUrl})`
@@ -155,14 +180,22 @@ function PreviewBlock({
         backgroundPosition: backgroundUrl ? "center" : undefined,
       }}
     >
-      <ContentBlocks
-        contentText={layoutItem.contentText}
-        attachments={layoutItem.attachments}
-        lineKeyPrefix={`${layoutItem.instanceId}-preview`}
-        openLinksInNewTab={layoutItem.paletteId === "menu"}
-        imageBorderEnabled={imageBorderEnabled}
-        imageBorderWidth={imageBorderWidth}
-      />
+      <div
+        className={`min-h-full rounded-[16px] font-mono text-sm leading-6 ${contentBorderEnabled ? "border border-black/8 bg-white/70" : ""}`}
+        style={{
+          padding: `${contentPadding}px`,
+          borderWidth: contentBorderEnabled ? `${contentBorderWidth}px` : undefined,
+        }}
+      >
+        <ContentBlocks
+          contentText={layoutItem.contentText}
+          attachments={layoutItem.attachments}
+          lineKeyPrefix={`${layoutItem.instanceId}-preview`}
+          openLinksInNewTab={layoutItem.paletteId === "menu"}
+          imageBorderEnabled={imageBorderEnabled}
+          imageBorderWidth={imageBorderWidth}
+        />
+      </div>
     </div>
   );
 }

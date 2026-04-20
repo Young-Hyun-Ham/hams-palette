@@ -118,6 +118,66 @@ body {
   color: #fff;
 }
 
+.formio-runtime-shell .form-group,
+.formio-runtime-shell .formio-form-group {
+  margin-bottom: 1rem;
+}
+
+.formio-runtime-shell .control-label,
+.formio-runtime-shell .form-check-label {
+  color: #44403c;
+  font-size: 0.875rem;
+}
+
+.formio-runtime-shell .form-check {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 0.5rem;
+}
+
+.formio-runtime-shell .form-check-inline,
+.formio-runtime-shell .radio.form-check-inline,
+.formio-runtime-shell .checkbox.form-check-inline,
+.formio-runtime-shell .radio-inline,
+.formio-runtime-shell .checkbox-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-right: 1rem;
+  margin-bottom: 0.5rem;
+  width: auto;
+  vertical-align: middle;
+}
+
+.formio-runtime-shell .form-check-input {
+  margin: 0;
+}
+
+.formio-runtime-shell .formio-component-radio .form-check-inline .form-check-label,
+.formio-runtime-shell .formio-component-selectboxes .form-check-inline .form-check-label,
+.formio-runtime-shell .formio-component-radio .radio-inline label,
+.formio-runtime-shell .formio-component-selectboxes .checkbox-inline label {
+  margin-bottom: 0;
+}
+
+.formio-runtime-shell .formio-component-radio .form-check-inline + .form-check-inline,
+.formio-runtime-shell .formio-component-selectboxes .form-check-inline + .form-check-inline,
+.formio-runtime-shell .formio-component-radio .radio-inline + .radio-inline,
+.formio-runtime-shell .formio-component-selectboxes .checkbox-inline + .checkbox-inline {
+  margin-left: 0;
+}
+
+.formio-runtime-shell .form-select,
+.formio-runtime-shell select.form-control {
+  width: 100%;
+  border: 1px solid rgb(0 0 0 / 0.1);
+  border-radius: 0.75rem;
+  background: #fff;
+  min-height: 42px;
+  padding: 0.65rem 2.25rem 0.65rem 0.85rem;
+}
+
 .formio-builder-shell .formcomponents,
 .formio-builder-shell .builder-sidebar,
 .formio-builder-shell .formbuilder {

@@ -42,9 +42,15 @@ export type LayoutItem = {
   cols: number;
   frameHeight?: number;
   contentHeight: number;
+  paletteBorderEnabled?: boolean;
+  paletteBorderWidth?: number;
   contentPadding?: number;
+  contentBorderEnabled?: boolean;
+  contentBorderWidth?: number;
   imageBorderEnabled?: boolean;
   imageBorderWidth?: number;
+  formBorderEnabled?: boolean;
+  formBorderWidth?: number;
   contentEnabled: boolean;
   contentText: string;
   backgroundImage: BinaryAsset | null;
@@ -62,6 +68,8 @@ export type EditorDraft = {
   contentHeight: number;
   contentText: string;
   contentPadding?: number;
+  contentBorderEnabled?: boolean;
+  contentBorderWidth?: number;
   imageBorderEnabled?: boolean;
   imageBorderWidth?: number;
   backgroundImage: BinaryAsset | null;
@@ -176,12 +184,36 @@ export function resolveContentPadding(contentPadding?: number) {
   return typeof contentPadding === "number" ? contentPadding : 12;
 }
 
+export function resolvePaletteBorderEnabled(paletteBorderEnabled?: boolean) {
+  return paletteBorderEnabled ?? false;
+}
+
+export function resolvePaletteBorderWidth(paletteBorderWidth?: number) {
+  return typeof paletteBorderWidth === "number" ? paletteBorderWidth : 1;
+}
+
+export function resolveContentBorderEnabled(contentBorderEnabled?: boolean) {
+  return contentBorderEnabled ?? false;
+}
+
+export function resolveContentBorderWidth(contentBorderWidth?: number) {
+  return typeof contentBorderWidth === "number" ? contentBorderWidth : 1;
+}
+
 export function resolveImageBorderEnabled(imageBorderEnabled?: boolean) {
   return imageBorderEnabled ?? false;
 }
 
 export function resolveImageBorderWidth(imageBorderWidth?: number) {
   return typeof imageBorderWidth === "number" ? imageBorderWidth : 1;
+}
+
+export function resolveFormBorderEnabled(formBorderEnabled?: boolean) {
+  return formBorderEnabled ?? false;
+}
+
+export function resolveFormBorderWidth(formBorderWidth?: number) {
+  return typeof formBorderWidth === "number" ? formBorderWidth : 1;
 }
 
 const CANVAS_WIDTH = 1440;

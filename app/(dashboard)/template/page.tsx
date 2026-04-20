@@ -18,7 +18,13 @@ import {
   hasTextualContent,
   paletteItems,
   createEmptyFormioSchema,
+  resolvePaletteBorderEnabled,
+  resolvePaletteBorderWidth,
+  resolveContentBorderEnabled,
+  resolveContentBorderWidth,
   resolveContentPadding,
+  resolveFormBorderEnabled,
+  resolveFormBorderWidth,
   resolveImageBorderEnabled,
   resolveImageBorderWidth,
   type BinaryAsset,
@@ -121,9 +127,15 @@ function makeLayoutItem(paletteId: string, index: number): LayoutItem {
     cols: item?.defaultCols ?? 12,
     frameHeight: item?.defaultContentHeight ?? 120,
     contentHeight: item?.defaultContentHeight ?? 120,
+    paletteBorderEnabled: false,
+    paletteBorderWidth: 1,
     contentPadding: 5,
+    contentBorderEnabled: false,
+    contentBorderWidth: 1,
     imageBorderEnabled: false,
     imageBorderWidth: 1,
+    formBorderEnabled: false,
+    formBorderWidth: 1,
     contentEnabled: true,
     contentText: item?.defaultContent ?? "",
     backgroundImage: null,
@@ -194,9 +206,15 @@ function BlockPreview({
   }
 
   const backgroundUrl = binaryToDataUrl(layoutItem.backgroundImage);
+  const paletteBorderEnabled = resolvePaletteBorderEnabled(layoutItem.paletteBorderEnabled);
+  const paletteBorderWidth = resolvePaletteBorderWidth(layoutItem.paletteBorderWidth);
   const contentPadding = resolveContentPadding(layoutItem.contentPadding);
+  const contentBorderEnabled = resolveContentBorderEnabled(layoutItem.contentBorderEnabled);
+  const contentBorderWidth = resolveContentBorderWidth(layoutItem.contentBorderWidth);
   const imageBorderEnabled = resolveImageBorderEnabled(layoutItem.imageBorderEnabled);
   const imageBorderWidth = resolveImageBorderWidth(layoutItem.imageBorderWidth);
+  const formBorderEnabled = resolveFormBorderEnabled(layoutItem.formBorderEnabled);
+  const formBorderWidth = resolveFormBorderWidth(layoutItem.formBorderWidth);
   const hasTextContent = hasTextualContent(layoutItem.contentText);
   const activeTab =
     layoutItem.tabs?.find((tab) => tab.id === layoutItem.activeTabId) ?? layoutItem.tabs?.[0];
@@ -206,8 +224,11 @@ function BlockPreview({
   if (layoutItem.paletteId === "tabs") {
     return (
       <div
-        className={`flex flex-col overflow-hidden rounded-[18px] border border-black/10 bg-white/60 p-4 ${compact ? "" : "mt-5"}`}
-        style={{ height: containerHeight }}
+        className={`flex flex-col overflow-hidden rounded-[18px] bg-white/60 p-4 ${paletteBorderEnabled ? "border border-black/10" : ""} ${compact ? "" : "mt-5"}`}
+        style={{
+          height: containerHeight,
+          borderWidth: paletteBorderEnabled ? `${paletteBorderWidth}px` : undefined,
+        }}
       >
         <div className="flex flex-wrap gap-2">
           {(layoutItem.tabs ?? []).map((tab) => (
@@ -256,13 +277,19 @@ function BlockPreview({
   if (layoutItem.paletteId === "layer" && (hasChildLayout || hasFormContent)) {
     return (
       <div
-        className={`overflow-y-auto rounded-[18px] border border-black/10 bg-white p-4 ${compact ? "" : "mt-5"}`}
-        style={{ height: containerHeight }}
+        className={`overflow-y-auto rounded-[18px] bg-white p-4 ${paletteBorderEnabled ? "border border-black/10" : ""} ${compact ? "" : "mt-5"}`}
+        style={{
+          height: containerHeight,
+          borderWidth: paletteBorderEnabled ? `${paletteBorderWidth}px` : undefined,
+        }}
       >
         {hasTextContent ? (
           <div
-            className="mb-4 rounded-[16px] border border-black/8 bg-white font-mono text-sm leading-6"
-            style={{ padding: `${contentPadding}px` }}
+            className={`mb-4 rounded-[16px] bg-white font-mono text-sm leading-6 ${contentBorderEnabled ? "border border-black/8" : ""}`}
+            style={{
+              padding: `${contentPadding}px`,
+              borderWidth: contentBorderEnabled ? `${contentBorderWidth}px` : undefined,
+            }}
           >
             <ContentBlocks
               contentText={layoutItem.contentText}
@@ -276,7 +303,11 @@ function BlockPreview({
 
         {hasFormContent ? (
           <div className={hasTextContent ? "mb-4" : "mb-4"}>
-            <FormioRenderedContent schema={layoutItem.formSchema} />
+            <FormioRenderedContent
+              schema={layoutItem.formSchema}
+              borderEnabled={formBorderEnabled}
+              borderWidth={formBorderWidth}
+            />
           </div>
         ) : null}
 
@@ -305,12 +336,12 @@ function BlockPreview({
 
   return (
     <div
-      className={`${compact ? "" : "mt-5 rounded-[18px] bg-black/6 backdrop-blur-[1px]"} overflow-y-auto`}
+      className={`${compact ? "" : "mt-5 rounded-[18px] bg-black/6 backdrop-blur-[1px]"} ${paletteBorderEnabled ? "border border-black/8" : ""} overflow-y-auto`}
       style={
         backgroundUrl
           ? {
                 height: containerHeight,
-                padding: `${contentPadding}px`,
+                borderWidth: paletteBorderEnabled ? `${paletteBorderWidth}px` : undefined,
                 backgroundColor: layoutItem.backgroundColor,
                 backgroundImage: `linear-gradient(rgba(20,20,20,0.22), rgba(20,20,20,0.22)), url(${backgroundUrl})`,
                 backgroundSize: "cover",
@@ -319,23 +350,31 @@ function BlockPreview({
           : layoutItem.backgroundColor
             ? {
                 height: containerHeight,
-                padding: `${contentPadding}px`,
+                borderWidth: paletteBorderEnabled ? `${paletteBorderWidth}px` : undefined,
                 backgroundColor: layoutItem.backgroundColor,
               }
             : {
                 height: containerHeight,
-                padding: `${contentPadding}px`,
+                borderWidth: paletteBorderEnabled ? `${paletteBorderWidth}px` : undefined,
               }
       }
     >
-      <ContentBlocks
-        contentText={layoutItem.contentText}
-        attachments={layoutItem.attachments}
-        lineKeyPrefix={layoutItem.instanceId}
-        openLinksInNewTab={layoutItem.paletteId === "menu"}
-        imageBorderEnabled={imageBorderEnabled}
-        imageBorderWidth={imageBorderWidth}
-      />
+      <div
+        className={`min-h-full rounded-[16px] font-mono text-sm leading-6 ${contentBorderEnabled ? "border border-black/8 bg-white/70" : ""}`}
+        style={{
+          padding: `${contentPadding}px`,
+          borderWidth: contentBorderEnabled ? `${contentBorderWidth}px` : undefined,
+        }}
+      >
+        <ContentBlocks
+          contentText={layoutItem.contentText}
+          attachments={layoutItem.attachments}
+          lineKeyPrefix={layoutItem.instanceId}
+          openLinksInNewTab={layoutItem.paletteId === "menu"}
+          imageBorderEnabled={imageBorderEnabled}
+          imageBorderWidth={imageBorderWidth}
+        />
+      </div>
       {/* {layoutItem.attachments.length > 0 ? (
         <div className="mt-4 flex flex-wrap gap-2">
           {layoutItem.attachments.map((asset) => (
@@ -457,9 +496,15 @@ function TemplateBuilderPage() {
       cols: item.defaultCols,
       frameHeight: item.defaultContentHeight,
       contentHeight: item.defaultContentHeight,
+      paletteBorderEnabled: false,
+      paletteBorderWidth: 1,
       contentPadding: 12,
+      contentBorderEnabled: false,
+      contentBorderWidth: 1,
       imageBorderEnabled: false,
       imageBorderWidth: 1,
+      formBorderEnabled: false,
+      formBorderWidth: 1,
       contentEnabled: true,
       contentText: item.defaultContent,
       backgroundImage: null,
@@ -540,7 +585,12 @@ function TemplateBuilderPage() {
   };
 
   const updateSelected = (
-    field: "cols" | "contentHeight" | "contentEnabled",
+    field:
+      | "cols"
+      | "contentHeight"
+      | "contentEnabled"
+      | "paletteBorderEnabled"
+      | "contentBorderEnabled",
     value: number | boolean,
   ) => {
     if (!selectedLayoutItem) {
@@ -671,6 +721,8 @@ function TemplateBuilderPage() {
       contentHeight: target.contentHeight,
       contentText: target.contentText,
       contentPadding: target.contentPadding,
+      contentBorderEnabled: target.contentBorderEnabled,
+      contentBorderWidth: target.contentBorderWidth,
       imageBorderEnabled: target.imageBorderEnabled,
       imageBorderWidth: target.imageBorderWidth,
       backgroundImage: cloneAsset(target.backgroundImage),
@@ -738,6 +790,8 @@ function TemplateBuilderPage() {
       contentHeight: editorDraft.contentHeight,
       contentText: editorDraft.contentText,
       contentPadding: editorDraft.contentPadding,
+      contentBorderEnabled: editorDraft.contentBorderEnabled,
+      contentBorderWidth: editorDraft.contentBorderWidth,
       imageBorderEnabled: editorDraft.imageBorderEnabled,
       imageBorderWidth: editorDraft.imageBorderWidth,
       backgroundImage: cloneAsset(editorDraft.backgroundImage),
@@ -1002,6 +1056,70 @@ function TemplateBuilderPage() {
 
               <label className="flex items-center justify-between rounded-[20px] border border-black/10 bg-[#faf7f1] px-4 py-3">
                 <div>
+                  <p className="text-sm font-medium text-stone-800">{t("palette border")}</p>
+                  <p className="text-xs text-stone-500">{t("controls whether the selected palette shows a border.")}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => updateSelected("paletteBorderEnabled", !selectedLayoutItem?.paletteBorderEnabled)}
+                  className={`min-w-[72px] whitespace-nowrap rounded-full px-3 py-2 text-xs font-medium leading-none ${selectedLayoutItem?.paletteBorderEnabled ? "bg-[#203b35] text-white" : "bg-stone-200 text-stone-700"}`}
+                >
+                  {selectedLayoutItem?.paletteBorderEnabled ? t("enabled") : t("disabled")}
+                </button>
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-stone-700">Border Width</span>
+                <input
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={selectedLayoutItem?.paletteBorderWidth ?? 1}
+                  onChange={(event) =>
+                    updateLayoutItem(selectedLayoutItem.instanceId, (item) => ({
+                      ...item,
+                      paletteBorderWidth: Math.max(1, Number(event.target.value) || 1),
+                    }))
+                  }
+                  disabled={!selectedLayoutItem?.paletteBorderEnabled}
+                  className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none disabled:cursor-not-allowed disabled:bg-stone-100"
+                />
+              </label>
+
+              <label className="flex items-center justify-between rounded-[20px] border border-black/10 bg-[#faf7f1] px-4 py-3">
+                <div>
+                  <p className="text-sm font-medium text-stone-800">{t("content border")}</p>
+                  <p className="text-xs text-stone-500">{t("controls whether text and image content shows a border.")}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => updateSelected("contentBorderEnabled", !selectedLayoutItem?.contentBorderEnabled)}
+                  className={`min-w-[72px] whitespace-nowrap rounded-full px-3 py-2 text-xs font-medium leading-none ${selectedLayoutItem?.contentBorderEnabled ? "bg-[#203b35] text-white" : "bg-stone-200 text-stone-700"}`}
+                >
+                  {selectedLayoutItem?.contentBorderEnabled ? t("enabled") : t("disabled")}
+                </button>
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-stone-700">Border Width</span>
+                <input
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={selectedLayoutItem?.contentBorderWidth ?? 1}
+                  onChange={(event) =>
+                    updateLayoutItem(selectedLayoutItem.instanceId, (item) => ({
+                      ...item,
+                      contentBorderWidth: Math.max(1, Number(event.target.value) || 1),
+                    }))
+                  }
+                  disabled={!selectedLayoutItem?.contentBorderEnabled}
+                  className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none disabled:cursor-not-allowed disabled:bg-stone-100"
+                />
+              </label>
+
+              <label className="flex items-center justify-between rounded-[20px] border border-black/10 bg-[#faf7f1] px-4 py-3">
+                <div>
                   <p className="text-sm font-medium text-stone-800">{t("enable content")}</p>
                   <p className="text-xs text-stone-500">{t("controls whether the block shows in preview.")}</p>
                 </div>
@@ -1061,17 +1179,7 @@ function TemplateBuilderPage() {
                 </div>
               ) : selectedLayoutItem?.paletteId === "layer" ? (
                 <div className="space-y-4 rounded-[22px] border border-black/10 bg-[#faf7f1] p-4">
-                  <div className="rounded-[18px] border border-black/10 bg-white p-4">
-                    <p className="text-sm font-semibold text-stone-800">{t("layer child palettes")}</p>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {paletteItems.map((item) => (
-                        <button key={item.id} type="button" onClick={() => appendPaletteToLayer(item.id)} className="rounded-full border border-black/10 bg-[#faf7f1] px-3 py-2 text-xs">
-                          {t("add")} {t(item.name)}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
+                  
                   <div className="rounded-[18px] border border-black/10 bg-white p-4">
                     <p className="text-sm font-semibold text-stone-800">Form.io</p>
                     <p className="mt-1 text-xs text-stone-500">{t("add formio components to decorate the selected layer palette.")}</p>
@@ -1086,6 +1194,56 @@ function TemplateBuilderPage() {
                       >
                         {t("open formio builder")}
                       </button>
+                    </div>
+                    <div className="mt-4 space-y-3 rounded-[16px] border border-black/8 bg-[#faf7f1] p-3">
+                      <label className="flex items-center justify-between gap-3">
+                        <span className="text-sm font-medium text-stone-700">Form Border</span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateLayoutItem(selectedLayoutItem.instanceId, (item) => ({
+                              ...item,
+                              formBorderEnabled: !item.formBorderEnabled,
+                            }))
+                          }
+                          className={`rounded-full px-3 py-1.5 text-xs font-medium ${
+                            selectedLayoutItem.formBorderEnabled
+                              ? "bg-[#203b35] text-white"
+                              : "bg-stone-200 text-stone-700"
+                          }`}
+                        >
+                          {selectedLayoutItem.formBorderEnabled ? t("enabled") : t("disabled")}
+                        </button>
+                      </label>
+                      <label className="block">
+                        <span className="mb-2 block text-xs font-medium text-stone-600">Border Width</span>
+                        <input
+                          type="number"
+                          min={1}
+                          step={1}
+                          value={selectedLayoutItem.formBorderWidth ?? 1}
+                          onChange={(event) =>
+                            updateLayoutItem(selectedLayoutItem.instanceId, (item) => ({
+                              ...item,
+                              formBorderWidth: Math.max(1, Number(event.target.value) || 1),
+                            }))
+                          }
+                          disabled={!selectedLayoutItem.formBorderEnabled}
+                          className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none disabled:cursor-not-allowed disabled:bg-stone-100"
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Layer Child Palettes 
+                  <div className="rounded-[18px] border border-black/10 bg-white p-4">
+                    <p className="text-sm font-semibold text-stone-800">{t("layer child palettes")}</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {paletteItems.map((item) => (
+                        <button key={item.id} type="button" onClick={() => appendPaletteToLayer(item.id)} className="rounded-full border border-black/10 bg-[#faf7f1] px-3 py-2 text-xs">
+                          {t("add")} {t(item.name)}
+                        </button>
+                      ))}
                     </div>
                   </div>
 
@@ -1103,7 +1261,8 @@ function TemplateBuilderPage() {
                       }) : <div className="rounded-[14px] border border-dashed border-black/10 px-4 py-5 text-sm text-stone-500">{t("no blocks in this layer yet.")}</div>}
                     </div>
                   </div>
-
+                  */}
+                  
                   {selectedLayoutItem.contentEnabled ? (
                     <div className="rounded-[18px] border border-black/10 bg-white p-4">
                       <div className="flex items-center justify-between gap-3">
@@ -1111,7 +1270,7 @@ function TemplateBuilderPage() {
                           <p className="text-sm font-semibold text-stone-800">{t("content editor")}</p>
                           <p className="text-xs text-stone-500">{t("edit text, background image, and attachments.")}</p>
                         </div>
-                        <button type="button" onClick={openEditor} className="rounded-full border border-black/10 bg-white px-2 py-2 text-sm">{t("open")}</button>
+                        <button type="button" onClick={openEditor} className="min-w-[72px] whitespace-nowrap rounded-full border border-black/10 bg-white px-4 py-2 text-sm leading-none">{t("open")}</button>
                       </div>
                     </div>
                   ) : null}
@@ -1123,7 +1282,7 @@ function TemplateBuilderPage() {
                       <p className="text-sm font-semibold text-stone-800">{t("content editor")}</p>
                       <p className="text-xs text-stone-500">{t("edit text, background image, and attachments.")}</p>
                     </div>
-                    <button type="button" onClick={openEditor} className="rounded-full border border-black/10 bg-white px-2 py-2 text-sm">{t("open")}</button>
+                    <button type="button" onClick={openEditor} className="min-w-[72px] whitespace-nowrap rounded-full border border-black/10 bg-white px-4 py-2 text-sm leading-none">{t("open")}</button>
                   </div>
                 </div>
               ) : null}

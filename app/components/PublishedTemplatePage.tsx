@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { ContentBlocks } from "./ContentBlocks";
 import { FormioRenderedContent } from "./FormioRenderedContent";
-import { binaryToDataUrl, colClass, findPaletteItem, hasTextualContent, resolveContentPadding, resolveImageBorderEnabled, resolveImageBorderWidth, type DashboardTemplate, type LayoutItem } from "../utils/shared";
+import { binaryToDataUrl, colClass, findPaletteItem, hasTextualContent, resolveContentBorderEnabled, resolveContentBorderWidth, resolveContentPadding, resolveFormBorderEnabled, resolveFormBorderWidth, resolveImageBorderEnabled, resolveImageBorderWidth, resolvePaletteBorderEnabled, resolvePaletteBorderWidth, type DashboardTemplate, type LayoutItem } from "../utils/shared";
 
 function PublicBlock({
   layoutItem,
@@ -27,9 +27,15 @@ function PublicBlock({
   }
 
   const backgroundUrl = binaryToDataUrl(layoutItem.backgroundImage);
+  const paletteBorderEnabled = resolvePaletteBorderEnabled(layoutItem.paletteBorderEnabled);
+  const paletteBorderWidth = resolvePaletteBorderWidth(layoutItem.paletteBorderWidth);
   const contentPadding = resolveContentPadding(layoutItem.contentPadding);
+  const contentBorderEnabled = resolveContentBorderEnabled(layoutItem.contentBorderEnabled);
+  const contentBorderWidth = resolveContentBorderWidth(layoutItem.contentBorderWidth);
   const imageBorderEnabled = resolveImageBorderEnabled(layoutItem.imageBorderEnabled);
   const imageBorderWidth = resolveImageBorderWidth(layoutItem.imageBorderWidth);
+  const formBorderEnabled = resolveFormBorderEnabled(layoutItem.formBorderEnabled);
+  const formBorderWidth = resolveFormBorderWidth(layoutItem.formBorderWidth);
   const hasTextContent = hasTextualContent(layoutItem.contentText);
   const activeTab =
     layoutItem.tabs?.find((tab) => tab.id === activeTabId) ?? layoutItem.tabs?.[0];
@@ -55,8 +61,11 @@ function PublicBlock({
   if (layoutItem.paletteId === "tabs") {
     return (
       <div
-        className="rounded-[22px] border border-black/10 bg-white/65 p-5"
-        style={{ minHeight: `${layoutItem.contentHeight}px` }}
+        className={`rounded-[22px] bg-white/65 p-5 ${paletteBorderEnabled ? "border border-black/10" : ""}`}
+        style={{
+          minHeight: `${layoutItem.contentHeight}px`,
+          borderWidth: paletteBorderEnabled ? `${paletteBorderWidth}px` : undefined,
+        }}
       >
         <div className="flex flex-wrap gap-2">
           {(layoutItem.tabs ?? []).map((tab) => (
@@ -88,11 +97,17 @@ function PublicBlock({
 
   if (layoutItem.paletteId === "layer" && (hasChildLayout || hasFormContent)) {
     return (
-      <div className={`${hasTextContent ? "overflow-y-auto" : "overflow-hidden"} rounded-[22px] border border-black/10 bg-white p-5`}>
+      <div
+        className={`${hasTextContent ? "overflow-y-auto" : "overflow-hidden"} rounded-[22px] bg-white p-5 ${paletteBorderEnabled ? "border border-black/10" : ""}`}
+        style={{ borderWidth: paletteBorderEnabled ? `${paletteBorderWidth}px` : undefined }}
+      >
         {hasTextContent ? (
           <div
-            className="mb-4 rounded-[18px] border border-black/8 bg-white font-mono text-sm leading-7"
-            style={{ padding: `${contentPadding}px` }}
+            className={`mb-4 rounded-[18px] bg-white font-mono text-sm leading-7 ${contentBorderEnabled ? "border border-black/8" : ""}`}
+            style={{
+              padding: `${contentPadding}px`,
+              borderWidth: contentBorderEnabled ? `${contentBorderWidth}px` : undefined,
+            }}
           >
             <ContentBlocks
               contentText={layoutItem.contentText}
@@ -106,7 +121,11 @@ function PublicBlock({
         ) : null}
         {hasFormContent ? (
           <div className="mb-4">
-            <FormioRenderedContent schema={layoutItem.formSchema} />
+            <FormioRenderedContent
+              schema={layoutItem.formSchema}
+              borderEnabled={formBorderEnabled}
+              borderWidth={formBorderWidth}
+            />
           </div>
         ) : null}
         <div className="grid grid-cols-12 gap-3">
@@ -122,10 +141,10 @@ function PublicBlock({
 
   return (
     <div
-      className={`overflow-y-auto rounded-[22px] font-mono text-sm leading-7 ${paletteItem.cardClassName}`}
+      className={`overflow-y-auto rounded-[22px] font-mono text-sm leading-7 ${paletteItem.cardClassName} ${paletteBorderEnabled ? "border border-black/8" : ""}`}
       style={{
         minHeight: `${layoutItem.contentHeight}px`,
-        padding: `${contentPadding}px`,
+        borderWidth: paletteBorderEnabled ? `${paletteBorderWidth}px` : undefined,
         backgroundColor: layoutItem.backgroundColor,
         backgroundImage: backgroundUrl
           ? `linear-gradient(rgba(20,20,20,0.14), rgba(20,20,20,0.14)), url(${backgroundUrl})`
@@ -134,14 +153,22 @@ function PublicBlock({
         backgroundPosition: backgroundUrl ? "center" : undefined,
       }}
     >
-      <ContentBlocks
-        contentText={layoutItem.contentText}
-        attachments={layoutItem.attachments}
-        lineKeyPrefix={`${layoutItem.instanceId}-published`}
-        linkResolver={resolveLink}
-        imageBorderEnabled={imageBorderEnabled}
-        imageBorderWidth={imageBorderWidth}
-      />
+      <div
+        className={`min-h-full rounded-[18px] font-mono text-sm leading-7 ${contentBorderEnabled ? "border border-black/8 bg-white/70" : ""}`}
+        style={{
+          padding: `${contentPadding}px`,
+          borderWidth: contentBorderEnabled ? `${contentBorderWidth}px` : undefined,
+        }}
+      >
+        <ContentBlocks
+          contentText={layoutItem.contentText}
+          attachments={layoutItem.attachments}
+          lineKeyPrefix={`${layoutItem.instanceId}-published`}
+          linkResolver={resolveLink}
+          imageBorderEnabled={imageBorderEnabled}
+          imageBorderWidth={imageBorderWidth}
+        />
+      </div>
     </div>
   );
 }
